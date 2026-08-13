@@ -2,6 +2,7 @@
 from tkinter import messagebox, ttk
 from config import WINDOW_WIDTH, WINDOW_HEIGHT
 from database import db
+from datetime import datetime
 
 class LoginWindow(tk.Tk):
     def __init__(self):
@@ -87,6 +88,9 @@ class MainWindow(tk.Tk):
         
         self.klient_combo = tk.OptionMenu(top_frame, self.klient_var, *klient_names, command=self.on_klient_change)
         self.klient_combo.pack(side="left", padx=5, fill="x", expand=True)
+        
+        btn_historia = tk.Button(top_frame, text="Historia", command=self.show_historia_window, font=("Arial", 11), bg="#2196F3", fg="white")
+        btn_historia.pack(side="left", padx=5)
         
         kierowca_label = tk.Label(top_frame, text="Kierowca:", font=("Arial", 12, "bold"), bg="white")
         kierowca_label.pack(side="left", padx=5)
@@ -218,6 +222,73 @@ class MainWindow(tk.Tk):
                 trans['pojemniki'],
                 trans['kierowca'] or "-"
             ))
+    
+    def show_historia_window(self):
+        klient_name = self.klient_var.get()
+        if not klient_name:
+            messagebox.showerror("Blad", "Wybierz klienta!")
+            return
+        
+        klient_id = self.klient_data[klient_name]
+        historia_win = tk.Toplevel(self)
+        historia_win.title(f"Historia - {klient_name}")
+        historia_win.geometry("900x600")
+        
+        title_label = tk.Label(historia_win, text=f"Historia transakcji: {klient_name}", font=("Arial", 14, "bold"))
+        title_label.pack(pady=10)
+        
+        columns = ("Data", "Typ", "Palety", "Pojemniki", "Kierowca")
+        tree = ttk.Treeview(historia_win, columns=columns, height=20, show="headings")
+        
+        for col in columns:
+            tree.heading(col, text=col)
+            tree.column(col, width=170)
+        
+        historia = db.get_historia(klient_id, 100)
+        for trans in historia:
+            data = trans['data'].split('.')[0] if '.' in trans['data'] else trans['data']
+            tree.insert("", "end", values=(
+                data,
+                trans['typ'],
+                trans['palety'],
+                trans['pojemniki'],
+                trans['kierowca'] or "-"
+            ))
+        
+        tree.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        btn_frame = tk.Frame(historia_win)
+        btn_frame.pack(fill="x", padx=10, pady=10)
+        
+        btn_druk = tk.Button(btn_frame, text="Drukuj", command=lambda: self.drukuj_historie(klient_name, historia), font=("Arial", 12), bg="#4CAF50", fg="white")
+        btn_druk.pack(side="left", padx=5)
+        
+        btn_close = tk.Button(btn_frame, text="Zamknij", command=historia_win.destroy, font=("Arial", 12))
+        btn_close.pack(side="left", padx=5)
+    
+    def drukuj_historie(self, klient_name, historia):
+        klient_id = self.klient_data[klient_name]
+        historia = db.get_historia(klient_id, 100)
+        
+        plik = f"historia_{klient_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        
+        with open(plik, 'w', encoding='utf-8') as f:
+            f.write("="*70 + "\n")
+            f.write(f"HISTORIA TRANSAKCJI: {klient_name}\n")
+            f.write(f"Data wydruku: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write("="*70 + "\n\n")
+            
+            f.write(f"{'Data':<20} {'Typ':<12} {'Palety':<10} {'Pojemniki':<12} {'Kierowca':<20}\n")
+            f.write("-"*70 + "\n")
+            
+            for trans in historia:
+                data = trans['data'].split('.')[0] if '.' in trans['data'] else trans['data']
+                kierowca = trans['kierowca'] or "-"
+                f.write(f"{data:<20} {trans['typ']:<12} {trans['palety']:<10} {trans['pojemniki']:<12} {kierowca:<20}\n")
+            
+            f.write("\n" + "="*70 + "\n")
+        
+        messagebox.showinfo("OK", f"Historia wydrukowana do: {plik}")
     
     def rozlicz(self):
         klient_name = self.klient_var.get()
