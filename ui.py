@@ -75,6 +75,17 @@ class MainWindow(tk.Tk):
         self.mag_palety_label = tk.Label(magazyn_inner, text="PALETY: 0", font=("Arial", 14, "bold"), bg="#FFE082")
         self.mag_palety_label.pack(side="left", padx=20)
         
+        search_frame = tk.Frame(main_frame, bg="white")
+        search_frame.pack(fill="x", pady=10)
+        
+        search_label = tk.Label(search_frame, text="Szukaj klienta:", font=("Arial", 12, "bold"), bg="white")
+        search_label.pack(side="left", padx=5)
+        
+        self.search_var = tk.StringVar()
+        self.search_entry = tk.Entry(search_frame, font=("Arial", 12), width=20)
+        self.search_entry.pack(side="left", padx=5)
+        self.search_entry.bind('<KeyRelease>', self.on_search)
+        
         top_frame = tk.Frame(main_frame, bg="white")
         top_frame.pack(fill="x", pady=10)
         
@@ -82,8 +93,8 @@ class MainWindow(tk.Tk):
         klient_label.pack(side="left", padx=5)
         
         self.klient_var = tk.StringVar(value="")
-        klienci = db.get_all_klienci()
-        self.klient_data = {k['nazwa']: k['id'] for k in klienci}
+        self.all_klienci = db.get_all_klienci()
+        self.klient_data = {k['nazwa']: k['id'] for k in self.all_klienci}
         klient_names = list(self.klient_data.keys())
         
         self.klient_combo = tk.OptionMenu(top_frame, self.klient_var, *klient_names, command=self.on_klient_change)
@@ -171,6 +182,16 @@ class MainWindow(tk.Tk):
         logout_btn.pack(pady=10, padx=20, fill="x")
         
         self.update_magazyn_display()
+    
+    def on_search(self, event):
+        search_text = self.search_entry.get().lower()
+        
+        self.klient_combo['menu'].delete(0, 'end')
+        
+        filtered = [k for k in self.klient_data.keys() if search_text in k.lower()]
+        
+        for klient in sorted(filtered):
+            self.klient_combo['menu'].add_command(label=klient, command=tk.CURRENT(klient))
     
     def update_magazyn_display(self):
         mag = db.get_magazyn()
