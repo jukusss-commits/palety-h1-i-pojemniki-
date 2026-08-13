@@ -78,10 +78,9 @@ class MainWindow(tk.Tk):
         search_frame = tk.Frame(main_frame, bg="white")
         search_frame.pack(fill="x", pady=10)
         
-        search_label = tk.Label(search_frame, text="Szukaj klienta:", font=("Arial", 12, "bold"), bg="white")
+        search_label = tk.Label(search_frame, text="Szukaj:", font=("Arial", 12, "bold"), bg="white")
         search_label.pack(side="left", padx=5)
         
-        self.search_var = tk.StringVar()
         self.search_entry = tk.Entry(search_frame, font=("Arial", 12), width=20)
         self.search_entry.pack(side="left", padx=5)
         self.search_entry.bind('<KeyRelease>', self.on_search)
@@ -97,8 +96,9 @@ class MainWindow(tk.Tk):
         self.klient_data = {k['nazwa']: k['id'] for k in self.all_klienci}
         klient_names = list(self.klient_data.keys())
         
-        self.klient_combo = tk.OptionMenu(top_frame, self.klient_var, *klient_names, command=self.on_klient_change)
+        self.klient_combo = ttk.Combobox(top_frame, textvariable=self.klient_var, values=klient_names, font=("Arial", 12), state="readonly")
         self.klient_combo.pack(side="left", padx=5, fill="x", expand=True)
+        self.klient_combo.bind('<<ComboboxSelected>>', lambda e: self.on_klient_change(self.klient_var.get()))
         
         btn_historia = tk.Button(top_frame, text="Historia", command=self.show_historia_window, font=("Arial", 11), bg="#2196F3", fg="white")
         btn_historia.pack(side="left", padx=5)
@@ -186,12 +186,9 @@ class MainWindow(tk.Tk):
     def on_search(self, event):
         search_text = self.search_entry.get().lower()
         
-        self.klient_combo['menu'].delete(0, 'end')
-        
         filtered = [k for k in self.klient_data.keys() if search_text in k.lower()]
         
-        for klient in sorted(filtered):
-            self.klient_combo['menu'].add_command(label=klient, command=tk.CURRENT(klient))
+        self.klient_combo['values'] = sorted(filtered)
     
     def update_magazyn_display(self):
         mag = db.get_magazyn()
@@ -205,6 +202,9 @@ class MainWindow(tk.Tk):
     def load_last_kierowca(self):
         klient_name = self.klient_var.get()
         if not klient_name:
+            return
+        
+        if klient_name not in self.klient_data:
             return
         
         klient_id = self.klient_data[klient_name]
