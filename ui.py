@@ -283,37 +283,48 @@ class MainWindow(tk.Tk):
         klient_name = self.selected_label.cget("text")
         historia_win = tk.Toplevel(self)
         historia_win.title(f"Historia - {klient_name}")
-        historia_win.geometry("1000x600")
+        historia_win.geometry("1200x650")
         
         tk.Label(historia_win, text=f"Historia: {klient_name}", font=("Arial", 14, "bold")).pack(pady=10)
         
-        columns = ("Data", "Typ", "Palety", "Pojemniki", "Kierowca")
+        columns = ("Data", "Typ", "Sal.Przed.P", "Sal.Przed.Po", "Przyjęto.P", "Przyjęto.Po", "Saldo Po.P", "Saldo Po.Po", "Kierowca")
         tree = ttk.Treeview(historia_win, columns=columns, height=20, show="headings")
         
-        for col in columns:
+        widths = [180, 80, 80, 80, 80, 80, 80, 80, 100]
+        for col, width in zip(columns, widths):
             tree.heading(col, text=col)
-            tree.column(col, width=180)
+            tree.column(col, width=width)
         
         historia = db.get_historia(self.selected_klient_id, 100)
         for trans in historia:
             data = trans['data'].split('.')[0] if '.' in trans['data'] else trans['data']
-            tree.insert("", "end", values=(data, trans['typ'], trans['palety'], trans['pojemniki'], trans['kierowca'] or "-"))
+            tree.insert("", "end", values=(
+                data, 
+                trans['typ'], 
+                trans['saldo_przed_palety'],
+                trans['saldo_przed_pojemniki'],
+                trans['palety'],
+                trans['pojemniki'],
+                trans['saldo_po_palety'],
+                trans['saldo_po_pojemniki'],
+                trans['kierowca'] or "-"
+            ))
         
         tree.pack(fill="both", expand=True, padx=10, pady=10)
         
         def drukuj():
             plik = f"historia_{klient_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
             with open(plik, 'w', encoding='utf-8') as f:
-                f.write("="*80 + "\n")
+                f.write("="*140 + "\n")
                 f.write(f"HISTORIA TRANSAKCJI: {klient_name}\n")
                 f.write(f"Data wydruku: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write("="*80 + "\n\n")
-                f.write(f"{'Data':<20} {'Typ':<12} {'Palety':<10} {'Pojemniki':<12} {'Kierowca':<20}\n")
-                f.write("-"*80 + "\n")
+                f.write("="*140 + "\n\n")
+                f.write(f"{'Data':<18} {'Typ':<10} {'SaloPrzed.P':<12} {'SaloPrzed.Po':<14} {'Przyjęto.P':<12} {'Przyjęto.Po':<14} {'SaloPo.P':<12} {'SaloPo.Po':<12} {'Kierowca':<20}\n")
+                f.write("-"*140 + "\n")
                 for trans in historia:
                     data = trans['data'].split('.')[0] if '.' in trans['data'] else trans['data']
-                    f.write(f"{data:<20} {trans['typ']:<12} {trans['palety']:<10} {trans['pojemniki']:<12} {trans['kierowca'] or '-':<20}\n")
-                f.write("="*80 + "\n")
+                    f.write(f"{data:<18} {trans['typ']:<10} {str(trans['saldo_przed_palety']):<12} {str(trans['saldo_przed_pojemniki']):<14} {str(trans['palety']):<12} {str(trans['pojemniki']):<14} {str(trans['saldo_po_palety']):<12} {str(trans['saldo_po_pojemniki']):<12} {(trans['kierowca'] or '-'):<20}\n")
+                f.write("="*140 + "\n")
             messagebox.showinfo("OK", f"Historia wydrukowana:\n{plik}")
         
         tk.Button(historia_win, text="🖨️ Drukuj", command=drukuj, font=("Arial", 11, "bold"), bg="#FF9800", fg="white", padx=20, pady=8).pack(pady=10)
