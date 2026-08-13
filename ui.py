@@ -46,376 +46,297 @@ class MainWindow(tk.Tk):
         super().__init__()
         self.user = user
         self.title(f"H1 Palety - {user['nazwa']}")
-        self.geometry("1200x900")
+        self.geometry("1400x950")
         
-        header = tk.Frame(self, bg="#FF6B6B", height=80)
+        header = tk.Frame(self, bg="#FF6B6B", height=60)
         header.pack(fill="x")
         
         header_label = tk.Label(
             header, 
             text=f"H1 PALETY - {user['nazwa']} ({user['rola']})", 
-            font=("Arial", 20, "bold"),
+            font=("Arial", 18, "bold"),
             bg="#FF6B6B",
             fg="white"
         )
-        header_label.pack(pady=20)
+        header_label.pack(pady=15)
         
         main_frame = tk.Frame(self, bg="white")
-        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        main_frame.pack(fill="both", expand=True, padx=15, pady=15)
         
-        top_btn_frame = tk.Frame(main_frame, bg="white")
-        top_btn_frame.pack(fill="x", pady=10)
+        top_info_frame = tk.Frame(main_frame, bg="white")
+        top_info_frame.pack(fill="x", pady=10)
         
-        btn_add_klient = tk.Button(top_btn_frame, text="+ Dodaj klienta", command=self.add_klient_window, font=("Arial", 11), bg="#FF9800", fg="white")
+        btn_add_klient = tk.Button(top_info_frame, text="➕ Dodaj klienta", command=self.add_klient_window, font=("Arial", 12, "bold"), bg="#FF9800", fg="white", padx=15, pady=8)
         btn_add_klient.pack(side="left", padx=5)
         
-        magazyn_frame = tk.Frame(main_frame, bg="#FFE082", relief="solid", borderwidth=2)
-        magazyn_frame.pack(fill="x", pady=10)
+        mag_frame = tk.Frame(top_info_frame, bg="#FFE082", relief="solid", borderwidth=2, padx=15, pady=8)
+        mag_frame.pack(side="left", padx=20, fill="x", expand=True)
         
-        magazyn_title = tk.Label(magazyn_frame, text="MAGAZYN", font=("Arial", 12, "bold"), bg="#FFE082")
-        magazyn_title.pack()
+        tk.Label(mag_frame, text="MAGAZYN - PALETY:", font=("Arial", 12, "bold"), bg="#FFE082").pack(side="left")
+        self.mag_label = tk.Label(mag_frame, text="0", font=("Arial", 14, "bold"), bg="#FFE082", fg="#D32F2F")
+        self.mag_label.pack(side="left", padx=10)
         
-        magazyn_inner = tk.Frame(magazyn_frame, bg="#FFE082")
-        magazyn_inner.pack(fill="x", padx=20, pady=10)
+        left_right_frame = tk.Frame(main_frame, bg="white")
+        left_right_frame.pack(fill="both", expand=True)
         
-        self.mag_palety_label = tk.Label(magazyn_inner, text="PALETY: 0", font=("Arial", 14, "bold"), bg="#FFE082")
-        self.mag_palety_label.pack(side="left", padx=20)
+        left_frame = tk.Frame(left_right_frame, bg="white")
+        left_frame.pack(side="left", fill="both", expand=False, padx=(0, 10))
         
-        search_frame = tk.Frame(main_frame, bg="white")
-        search_frame.pack(fill="x", pady=10)
+        tk.Label(left_frame, text="🔍 SZUKAJ KLIENTA", font=("Arial", 13, "bold"), bg="white").pack(fill="x", pady=(0, 10))
         
-        search_label = tk.Label(search_frame, text="Szukaj (nazwa/NIP):", font=("Arial", 12, "bold"), bg="white")
-        search_label.pack(side="left", padx=5)
+        search_input_frame = tk.Frame(left_frame, bg="white")
+        search_input_frame.pack(fill="x", pady=5)
         
-        self.search_entry = tk.Entry(search_frame, font=("Arial", 12), width=30)
-        self.search_entry.pack(side="left", padx=5)
+        tk.Label(search_input_frame, text="Nazwa / NIP:", font=("Arial", 11), bg="white").pack()
+        self.search_entry = tk.Entry(search_input_frame, font=("Arial", 12), width=25)
+        self.search_entry.pack(fill="x")
         self.search_entry.bind('<KeyRelease>', self.on_search)
         
-        search_results_label = tk.Label(search_frame, text="", font=("Arial", 10), bg="white", fg="#2196F3")
-        search_results_label.pack(side="left", padx=5)
-        self.search_results_label = search_results_label
+        results_frame = tk.Frame(left_frame, bg="white", relief="solid", borderwidth=1)
+        results_frame.pack(fill="both", expand=True, pady=(10, 0))
         
-        top_frame = tk.Frame(main_frame, bg="white")
-        top_frame.pack(fill="x", pady=10)
+        tk.Label(results_frame, text="WYNIKI:", font=("Arial", 11, "bold"), bg="white").pack(fill="x", padx=5, pady=5)
         
-        klient_label = tk.Label(top_frame, text="Wybrany klient:", font=("Arial", 12, "bold"), bg="white")
-        klient_label.pack(side="left", padx=5)
+        self.results_tree = ttk.Treeview(results_frame, columns=("Nazwa", "NIP"), height=15, show="tree")
+        self.results_tree.pack(fill="both", expand=True, padx=5, pady=5)
+        self.results_tree.bind('<Double-1>', self.on_result_click)
         
-        self.klient_selected_label = tk.Label(top_frame, text="---", font=("Arial", 12, "bold"), bg="white", fg="#FF6B6B")
-        self.klient_selected_label.pack(side="left", padx=5)
+        right_frame = tk.Frame(left_right_frame, bg="white", relief="solid", borderwidth=2)
+        right_frame.pack(side="left", fill="both", expand=True, padx=(10, 0))
         
-        self.refresh_klienci()
+        tk.Label(right_frame, text="📋 ROZLICZENIE", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
         
-        btn_historia = tk.Button(top_frame, text="Historia", command=self.show_historia_window, font=("Arial", 11), bg="#2196F3", fg="white")
-        btn_historia.pack(side="left", padx=5)
+        selected_frame = tk.Frame(right_frame, bg="#E3F2FD", relief="solid", borderwidth=1)
+        selected_frame.pack(fill="x", padx=10, pady=5)
         
-        kierowca_label = tk.Label(top_frame, text="Kierowca:", font=("Arial", 12, "bold"), bg="white")
-        kierowca_label.pack(side="left", padx=5)
-        self.kierowca_input = tk.Entry(top_frame, font=("Arial", 12), width=15)
-        self.kierowca_input.pack(side="left", padx=5)
+        tk.Label(selected_frame, text="Wybrany klient:", font=("Arial", 10, "bold"), bg="#E3F2FD").pack(side="left", padx=5, pady=5)
+        self.selected_label = tk.Label(selected_frame, text="Brak", font=("Arial", 11, "bold"), bg="#E3F2FD", fg="#D32F2F")
+        self.selected_label.pack(side="left", padx=5, pady=5)
         
-        saldo_frame = tk.Frame(main_frame, bg="#F0F0F0", relief="solid", borderwidth=2)
-        saldo_frame.pack(fill="x", pady=10)
+        saldo_frame = tk.Frame(right_frame, bg="#F5F5F5", relief="solid", borderwidth=1)
+        saldo_frame.pack(fill="x", padx=10, pady=5)
         
-        saldo_title = tk.Label(saldo_frame, text="SALDO KLIENTA", font=("Arial", 14, "bold"), bg="#F0F0F0")
-        saldo_title.pack()
+        tk.Label(saldo_frame, text="Aktualne saldo:", font=("Arial", 10, "bold"), bg="#F5F5F5").pack(fill="x", padx=5, pady=5)
         
-        saldo_inner = tk.Frame(saldo_frame, bg="#F0F0F0")
-        saldo_inner.pack(fill="x", padx=20, pady=10)
+        saldo_inner = tk.Frame(saldo_frame, bg="#F5F5F5")
+        saldo_inner.pack(fill="x", padx=10, pady=5)
         
-        self.palety_label = tk.Label(saldo_inner, text="PALETY: 0", font=("Arial", 16, "bold"), bg="#F0F0F0", fg="#4CAF50")
-        self.palety_label.pack(side="left", padx=20)
+        self.palety_saldo = tk.Label(saldo_inner, text="Palety: 0", font=("Arial", 12, "bold"), bg="#F5F5F5", fg="#1976D2")
+        self.palety_saldo.pack(side="left", padx=20)
         
-        self.pojemniki_label = tk.Label(saldo_inner, text="POJEMNIKI: 0", font=("Arial", 16, "bold"), bg="#F0F0F0", fg="#2196F3")
-        self.pojemniki_label.pack(side="left", padx=20)
+        self.pojemniki_saldo = tk.Label(saldo_inner, text="Pojemniki: 0", font=("Arial", 12, "bold"), bg="#F5F5F5", fg="#1976D2")
+        self.pojemniki_saldo.pack(side="left", padx=20)
         
-        input_frame = tk.Frame(main_frame, bg="white")
-        input_frame.pack(fill="x", pady=10)
+        input_frame = tk.Frame(right_frame, bg="white")
+        input_frame.pack(fill="x", padx=10, pady=10)
         
-        przyjete_frame = tk.LabelFrame(input_frame, text="PRZYJETE", font=("Arial", 12, "bold"), bg="white", fg="#4CAF50")
-        przyjete_frame.pack(side="left", padx=10, fill="both", expand=True)
+        przyjete_frame = tk.LabelFrame(input_frame, text="PRZYJĘTE", font=("Arial", 11, "bold"), bg="#E8F5E9", fg="#388E3C", padx=10, pady=10)
+        przyjete_frame.pack(fill="x", pady=5)
         
-        tk.Label(przyjete_frame, text="Palety:", font=("Arial", 11), bg="white").pack(side="left", padx=5, pady=5)
-        self.przyjete_palety = tk.Entry(przyjete_frame, font=("Arial", 12), width=8)
-        self.przyjete_palety.pack(side="left", padx=5)
-        self.przyjete_palety.insert(0, "0")
+        p_frame = tk.Frame(przyjete_frame, bg="#E8F5E9")
+        p_frame.pack(fill="x")
+        tk.Label(p_frame, text="Palety:", font=("Arial", 10), bg="#E8F5E9").pack(side="left", padx=5)
+        self.przyjete_p = tk.Entry(p_frame, font=("Arial", 11), width=10)
+        self.przyjete_p.pack(side="left", padx=5)
+        self.przyjete_p.insert(0, "0")
         
-        tk.Label(przyjete_frame, text="Pojemniki:", font=("Arial", 11), bg="white").pack(side="left", padx=5, pady=5)
-        self.przyjete_pojemniki = tk.Entry(przyjete_frame, font=("Arial", 12), width=8)
-        self.przyjete_pojemniki.pack(side="left", padx=5)
-        self.przyjete_pojemniki.insert(0, "0")
+        tk.Label(p_frame, text="Pojemniki:", font=("Arial", 10), bg="#E8F5E9").pack(side="left", padx=5)
+        self.przyjete_po = tk.Entry(p_frame, font=("Arial", 11), width=10)
+        self.przyjete_po.pack(side="left", padx=5)
+        self.przyjete_po.insert(0, "0")
         
-        wydane_frame = tk.LabelFrame(input_frame, text="WYDANE", font=("Arial", 12, "bold"), bg="white", fg="#FF9800")
-        wydane_frame.pack(side="left", padx=10, fill="both", expand=True)
+        wydane_frame = tk.LabelFrame(input_frame, text="WYDANE", font=("Arial", 11, "bold"), bg="#FFEBEE", fg="#D32F2F", padx=10, pady=10)
+        wydane_frame.pack(fill="x", pady=5)
         
-        tk.Label(wydane_frame, text="Palety:", font=("Arial", 11), bg="white").pack(side="left", padx=5, pady=5)
-        self.wydane_palety = tk.Entry(wydane_frame, font=("Arial", 12), width=8)
-        self.wydane_palety.pack(side="left", padx=5)
-        self.wydane_palety.insert(0, "0")
+        w_frame = tk.Frame(wydane_frame, bg="#FFEBEE")
+        w_frame.pack(fill="x")
+        tk.Label(w_frame, text="Palety:", font=("Arial", 10), bg="#FFEBEE").pack(side="left", padx=5)
+        self.wydane_p = tk.Entry(w_frame, font=("Arial", 11), width=10)
+        self.wydane_p.pack(side="left", padx=5)
+        self.wydane_p.insert(0, "0")
         
-        tk.Label(wydane_frame, text="Pojemniki:", font=("Arial", 11), bg="white").pack(side="left", padx=5, pady=5)
-        self.wydane_pojemniki = tk.Entry(wydane_frame, font=("Arial", 12), width=8)
-        self.wydane_pojemniki.pack(side="left", padx=5)
-        self.wydane_pojemniki.insert(0, "0")
+        tk.Label(w_frame, text="Pojemniki:", font=("Arial", 10), bg="#FFEBEE").pack(side="left", padx=5)
+        self.wydane_po = tk.Entry(w_frame, font=("Arial", 11), width=10)
+        self.wydane_po.pack(side="left", padx=5)
+        self.wydane_po.insert(0, "0")
         
-        btn_frame = tk.Frame(main_frame, bg="white")
-        btn_frame.pack(fill="x", pady=15)
+        kierowca_frame = tk.Frame(right_frame, bg="white")
+        kierowca_frame.pack(fill="x", padx=10, pady=10)
         
-        btn_rozlicz = tk.Button(
-            btn_frame,
-            text="ROZLICZ",
-            font=("Arial", 16, "bold"),
-            bg="#FF6B6B",
-            fg="white",
-            height=2,
-            command=self.rozlicz
-        )
-        btn_rozlicz.pack(fill="both", expand=True)
+        tk.Label(kierowca_frame, text="Kierowca:", font=("Arial", 10, "bold"), bg="white").pack(side="left", padx=5)
+        self.kierowca_entry = tk.Entry(kierowca_frame, font=("Arial", 11), width=30)
+        self.kierowca_entry.pack(side="left", padx=5, fill="x", expand=True)
         
-        historia_label = tk.Label(main_frame, text="OSTATNIE TRANSAKCJE", font=("Arial", 12, "bold"), bg="white")
-        historia_label.pack(fill="x", pady=(10, 5))
+        btn_frame = tk.Frame(right_frame, bg="white")
+        btn_frame.pack(fill="x", padx=10, pady=10)
         
-        columns = ("Data", "Typ", "Palety", "Pojemniki", "Kierowca")
-        self.tree = ttk.Treeview(main_frame, columns=columns, height=6, show="headings")
+        btn_rozlicz = tk.Button(btn_frame, text="✅ ROZLICZ", command=self.rozlicz, font=("Arial", 13, "bold"), bg="#4CAF50", fg="white", padx=20, pady=12)
+        btn_rozlicz.pack(fill="x")
         
-        for col in columns:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, width=200)
+        btn_historia = tk.Button(btn_frame, text="📖 Historia transakcji", command=self.show_historia_window, font=("Arial", 11), bg="#2196F3", fg="white", padx=20, pady=8)
+        btn_historia.pack(fill="x", pady=(5, 0))
         
-        self.tree.pack(fill="both", expand=True)
-        
-        logout_btn = tk.Button(self, text="Wyloguj", command=self.logout, bg="#FF6B6B", fg="white", font=("Arial", 12))
+        logout_btn = tk.Button(self, text="Wyloguj", command=self.logout, bg="#FF6B6B", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10)
         logout_btn.pack(pady=10, padx=20, fill="x")
         
         self.selected_klient_id = None
+        self.refresh_klienci()
         self.update_magazyn_display()
     
     def refresh_klienci(self):
         self.all_klienci = db.get_all_klienci()
     
+    def on_search(self, event):
+        search_text = self.search_entry.get().lower().strip()
+        
+        for item in self.results_tree.get_children():
+            self.results_tree.delete(item)
+        
+        filtered = []
+        for k in self.all_klienci:
+            if search_text == "" or search_text in k['nazwa'].lower() or (k['nip'] and search_text in k['nip']):
+                filtered.append(k)
+        
+        for k in filtered:
+            nip_display = k['nip'] if k['nip'] else "-"
+            self.results_tree.insert("", "end", text=k['nazwa'], values=(k['nazwa'], nip_display), iid=k['id'])
+    
+    def on_result_click(self, event):
+        selection = self.results_tree.selection()
+        if not selection:
+            return
+        klient_id = int(selection[0])
+        klient = next((k for k in self.all_klienci if k['id'] == klient_id), None)
+        if klient:
+            self.select_klient(klient)
+    
+    def select_klient(self, klient):
+        self.selected_klient_id = klient['id']
+        display = f"{klient['nazwa']}"
+        if klient['nip']:
+            display += f" (NIP: {klient['nip']})"
+        self.selected_label.config(text=display, fg="#1976D2")
+        self.update_saldo()
+        self.load_last_kierowca()
+    
+    def update_magazyn_display(self):
+        mag = db.get_magazyn()
+        self.mag_label.config(text=str(mag['palety']))
+    
+    def load_last_kierowca(self):
+        if not self.selected_klient_id:
+            return
+        historia = db.get_historia(self.selected_klient_id, 1)
+        if historia and historia[0]['kierowca']:
+            self.kierowca_entry.delete(0, "end")
+            self.kierowca_entry.insert(0, historia[0]['kierowca'])
+    
+    def update_saldo(self):
+        if not self.selected_klient_id:
+            self.palety_saldo.config(text="Palety: 0")
+            self.pojemniki_saldo.config(text="Pojemniki: 0")
+            return
+        saldo = db.get_saldo(self.selected_klient_id)
+        self.palety_saldo.config(text=f"Palety: {saldo['palety']}")
+        self.pojemniki_saldo.config(text=f"Pojemniki: {saldo['pojemniki']}")
+    
     def add_klient_window(self):
         add_win = tk.Toplevel(self)
         add_win.title("Dodaj klienta")
         add_win.geometry("400x200")
+        add_win.resizable(False, False)
         
-        tk.Label(add_win, text="Nazwa:", font=("Arial", 12)).pack(pady=5)
+        tk.Label(add_win, text="Nazwa klienta:", font=("Arial", 12, "bold")).pack(pady=(10, 5), padx=20)
         nazwa_entry = tk.Entry(add_win, font=("Arial", 12), width=40)
-        nazwa_entry.pack(pady=5)
+        nazwa_entry.pack(pady=5, padx=20)
         
-        tk.Label(add_win, text="NIP (opcjonalnie):", font=("Arial", 12)).pack(pady=5)
+        tk.Label(add_win, text="NIP (opcjonalnie):", font=("Arial", 12, "bold")).pack(pady=(10, 5), padx=20)
         nip_entry = tk.Entry(add_win, font=("Arial", 12), width=40)
-        nip_entry.pack(pady=5)
+        nip_entry.pack(pady=5, padx=20)
         
         def save_klient():
             nazwa = nazwa_entry.get().strip()
             nip = nip_entry.get().strip()
             if not nazwa:
-                messagebox.showerror("Blad", "Wpisz nazwę!")
+                messagebox.showerror("Błąd", "Wpisz nazwę!")
                 return
             result = db.add_klient(nazwa, nip if nip else "")
             if result["status"]:
-                messagebox.showinfo("OK", "Klient dodany!")
+                messagebox.showinfo("Sukces", f"Klient '{nazwa}' dodany!")
                 self.refresh_klienci()
                 self.search_entry.delete(0, "end")
                 self.on_search(None)
                 add_win.destroy()
             else:
                 if result["error"] == "nazwa_exists":
-                    messagebox.showerror("Blad", "Nazwa już istnieje!")
+                    messagebox.showerror("Błąd", "Klient o tej nazwie już istnieje!")
                 elif result["error"] == "nip_exists":
-                    messagebox.showerror("Blad", "NIP już istnieje!")
-                else:
-                    messagebox.showerror("Blad", "Błąd przy dodawaniu!")
+                    messagebox.showerror("Błąd", "Klient o tym NIP już istnieje!")
         
-        tk.Button(add_win, text="Dodaj", command=save_klient, font=("Arial", 12), bg="#4CAF50", fg="white").pack(pady=10)
-    
-    def on_search(self, event):
-        search_text = self.search_entry.get().lower().strip()
-        
-        filtered = []
-        for k in self.all_klienci:
-            if search_text == "":
-                filtered.append(k)
-            elif search_text in k['nazwa'].lower() or (k['nip'] and search_text in k['nip']):
-                filtered.append(k)
-        
-        self.search_results_label.config(text=f"Wyników: {len(filtered)}")
-        
-        if len(filtered) == 1:
-            self.select_klient(filtered[0])
-        else:
-            self.selected_klient_id = None
-            self.klient_selected_label.config(text="---")
-            self.clear_saldo()
-        
-        self.display_search_results(filtered)
-    
-    def display_search_results(self, results):
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        
-        for k in results:
-            display = f"{k['nazwa']}"
-            if k['nip']:
-                display += f" ({k['nip']})"
-            self.tree.insert("", "end", values=(display, "", "", "", ""), tags=("klient",))
-        
-        self.tree.bind('<Double-1>', self.on_result_click)
-    
-    def on_result_click(self, event):
-        item = self.tree.selection()[0]
-        values = self.tree.item(item)['values']
-        display = values[0]
-        
-        for k in self.all_klienci:
-            k_display = f"{k['nazwa']}"
-            if k['nip']:
-                k_display += f" ({k['nip']})"
-            if k_display == display:
-                self.select_klient(k)
-                break
-    
-    def select_klient(self, klient):
-        self.selected_klient_id = klient['id']
-        display_name = f"{klient['nazwa']}"
-        if klient['nip']:
-            display_name += f" ({klient['nip']})"
-        self.klient_selected_label.config(text=display_name)
-        self.update_saldo()
-        self.refresh_historia()
-        self.load_last_kierowca()
-    
-    def update_magazyn_display(self):
-        mag = db.get_magazyn()
-        self.mag_palety_label.config(text=f"PALETY: {mag['palety']}")
-    
-    def load_last_kierowca(self):
-        if not self.selected_klient_id:
-            return
-        
-        historia = db.get_historia(self.selected_klient_id, 1)
-        
-        if historia and historia[0]['kierowca']:
-            self.kierowca_input.delete(0, "end")
-            self.kierowca_input.insert(0, historia[0]['kierowca'])
-    
-    def update_saldo(self):
-        if not self.selected_klient_id:
-            self.palety_label.config(text=f"PALETY: 0")
-            self.pojemniki_label.config(text=f"POJEMNIKI: 0")
-            return
-        saldo = db.get_saldo(self.selected_klient_id)
-        self.palety_label.config(text=f"PALETY: {saldo['palety']}")
-        self.pojemniki_label.config(text=f"POJEMNIKI: {saldo['pojemniki']}")
-    
-    def clear_saldo(self):
-        self.palety_label.config(text=f"PALETY: 0")
-        self.pojemniki_label.config(text=f"POJEMNIKI: 0")
-    
-    def refresh_historia(self):
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        
-        if not self.selected_klient_id:
-            return
-        
-        historia = db.get_historia(self.selected_klient_id, 10)
-        
-        for trans in historia:
-            data = trans['data'].split('.')[0] if '.' in trans['data'] else trans['data']
-            self.tree.insert("", 0, values=(
-                data,
-                trans['typ'],
-                trans['palety'],
-                trans['pojemniki'],
-                trans['kierowca'] or "-"
-            ))
+        tk.Button(add_win, text="Dodaj", command=save_klient, font=("Arial", 12, "bold"), bg="#4CAF50", fg="white", padx=30, pady=8).pack(pady=15)
     
     def show_historia_window(self):
         if not self.selected_klient_id:
-            messagebox.showerror("Blad", "Wybierz klienta!")
+            messagebox.showerror("Błąd", "Wybierz klienta!")
             return
         
-        klient_display = self.klient_selected_label.cget("text")
-        
+        klient_name = self.selected_label.cget("text")
         historia_win = tk.Toplevel(self)
-        historia_win.title(f"Historia - {klient_display}")
-        historia_win.geometry("900x600")
+        historia_win.title(f"Historia - {klient_name}")
+        historia_win.geometry("1000x600")
         
-        title_label = tk.Label(historia_win, text=f"Historia transakcji: {klient_display}", font=("Arial", 14, "bold"))
-        title_label.pack(pady=10)
+        tk.Label(historia_win, text=f"Historia: {klient_name}", font=("Arial", 14, "bold")).pack(pady=10)
         
         columns = ("Data", "Typ", "Palety", "Pojemniki", "Kierowca")
         tree = ttk.Treeview(historia_win, columns=columns, height=20, show="headings")
         
         for col in columns:
             tree.heading(col, text=col)
-            tree.column(col, width=170)
+            tree.column(col, width=180)
         
         historia = db.get_historia(self.selected_klient_id, 100)
         for trans in historia:
             data = trans['data'].split('.')[0] if '.' in trans['data'] else trans['data']
-            tree.insert("", "end", values=(
-                data,
-                trans['typ'],
-                trans['palety'],
-                trans['pojemniki'],
-                trans['kierowca'] or "-"
-            ))
+            tree.insert("", "end", values=(data, trans['typ'], trans['palety'], trans['pojemniki'], trans['kierowca'] or "-"))
         
         tree.pack(fill="both", expand=True, padx=10, pady=10)
         
-        btn_frame = tk.Frame(historia_win)
-        btn_frame.pack(fill="x", padx=10, pady=10)
+        def drukuj():
+            plik = f"historia_{klient_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            with open(plik, 'w', encoding='utf-8') as f:
+                f.write("="*80 + "\n")
+                f.write(f"HISTORIA TRANSAKCJI: {klient_name}\n")
+                f.write(f"Data wydruku: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write("="*80 + "\n\n")
+                f.write(f"{'Data':<20} {'Typ':<12} {'Palety':<10} {'Pojemniki':<12} {'Kierowca':<20}\n")
+                f.write("-"*80 + "\n")
+                for trans in historia:
+                    data = trans['data'].split('.')[0] if '.' in trans['data'] else trans['data']
+                    f.write(f"{data:<20} {trans['typ']:<12} {trans['palety']:<10} {trans['pojemniki']:<12} {trans['kierowca'] or '-':<20}\n")
+                f.write("="*80 + "\n")
+            messagebox.showinfo("OK", f"Historia wydrukowana:\n{plik}")
         
-        btn_druk = tk.Button(btn_frame, text="Drukuj", command=lambda: self.drukuj_historie(klient_display, historia), font=("Arial", 12), bg="#4CAF50", fg="white")
-        btn_druk.pack(side="left", padx=5)
-        
-        btn_close = tk.Button(btn_frame, text="Zamknij", command=historia_win.destroy, font=("Arial", 12))
-        btn_close.pack(side="left", padx=5)
-    
-    def drukuj_historie(self, klient_display, historia):
-        historia = db.get_historia(self.selected_klient_id, 100)
-        
-        plik = f"historia_{klient_display.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        
-        with open(plik, 'w', encoding='utf-8') as f:
-            f.write("="*70 + "\n")
-            f.write(f"HISTORIA TRANSAKCJI: {klient_display}\n")
-            f.write(f"Data wydruku: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write("="*70 + "\n\n")
-            
-            f.write(f"{'Data':<20} {'Typ':<12} {'Palety':<10} {'Pojemniki':<12} {'Kierowca':<20}\n")
-            f.write("-"*70 + "\n")
-            
-            for trans in historia:
-                data = trans['data'].split('.')[0] if '.' in trans['data'] else trans['data']
-                kierowca = trans['kierowca'] or "-"
-                f.write(f"{data:<20} {trans['typ']:<12} {trans['palety']:<10} {trans['pojemniki']:<12} {kierowca:<20}\n")
-            
-            f.write("\n" + "="*70 + "\n")
-        
-        messagebox.showinfo("OK", f"Historia wydrukowana do: {plik}")
+        tk.Button(historia_win, text="🖨️ Drukuj", command=drukuj, font=("Arial", 11, "bold"), bg="#FF9800", fg="white", padx=20, pady=8).pack(pady=10)
     
     def rozlicz(self):
         if not self.selected_klient_id:
-            messagebox.showerror("Blad", "Wybierz klienta!")
+            messagebox.showerror("Błąd", "Wybierz klienta!")
             return
         
         try:
-            przyjete_p = int(self.przyjete_palety.get() or 0)
-            przyjete_po = int(self.przyjete_pojemniki.get() or 0)
-            wydane_p = int(self.wydane_palety.get() or 0)
-            wydane_po = int(self.wydane_pojemniki.get() or 0)
+            przyjete_p = int(self.przyjete_p.get() or 0)
+            przyjete_po = int(self.przyjete_po.get() or 0)
+            wydane_p = int(self.wydane_p.get() or 0)
+            wydane_po = int(self.wydane_po.get() or 0)
         except:
-            messagebox.showerror("Blad", "Wpisz liczby!")
+            messagebox.showerror("Błąd", "Wpisz prawidłowe liczby!")
             return
         
         if przyjete_p == 0 and przyjete_po == 0 and wydane_p == 0 and wydane_po == 0:
-            messagebox.showerror("Blad", "Wpisz co najmniej cos!")
+            messagebox.showerror("Błąd", "Wpisz co najmniej jedną wartość!")
             return
         
-        kierowca = self.kierowca_input.get()
+        kierowca = self.kierowca_entry.get().strip()
         
         if przyjete_p > 0 or przyjete_po > 0:
             db.update_saldo(self.selected_klient_id, przyjete_p, przyjete_po, kierowca, "PRZYJECIE", self.user['id'])
@@ -423,21 +344,20 @@ class MainWindow(tk.Tk):
         if wydane_p > 0 or wydane_po > 0:
             db.update_saldo(self.selected_klient_id, -wydane_p, -wydane_po, kierowca, "WYDANIE", self.user['id'])
         
-        messagebox.showinfo("OK", "Rozliczono!")
+        messagebox.showinfo("✅ Sukces", "Rozliczenie zapisane!")
         self.clear_inputs()
         self.update_saldo()
-        self.refresh_historia()
         self.update_magazyn_display()
     
     def clear_inputs(self):
-        self.przyjete_palety.delete(0, "end")
-        self.przyjete_palety.insert(0, "0")
-        self.przyjete_pojemniki.delete(0, "end")
-        self.przyjete_pojemniki.insert(0, "0")
-        self.wydane_palety.delete(0, "end")
-        self.wydane_palety.insert(0, "0")
-        self.wydane_pojemniki.delete(0, "end")
-        self.wydane_pojemniki.insert(0, "0")
+        self.przyjete_p.delete(0, "end")
+        self.przyjete_p.insert(0, "0")
+        self.przyjete_po.delete(0, "end")
+        self.przyjete_po.insert(0, "0")
+        self.wydane_p.delete(0, "end")
+        self.wydane_p.insert(0, "0")
+        self.wydane_po.delete(0, "end")
+        self.wydane_po.insert(0, "0")
     
     def logout(self):
         self.destroy()
