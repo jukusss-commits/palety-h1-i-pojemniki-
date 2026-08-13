@@ -62,6 +62,10 @@ class Database:
             pojemniki INTEGER DEFAULT 0,
             kierowca TEXT,
             pracownik_id INTEGER,
+            saldo_przed_palety INTEGER DEFAULT 0,
+            saldo_przed_pojemniki INTEGER DEFAULT 0,
+            saldo_po_palety INTEGER DEFAULT 0,
+            saldo_po_pojemniki INTEGER DEFAULT 0,
             data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(klient_id) REFERENCES klienci(id),
             FOREIGN KEY(pracownik_id) REFERENCES pracownicy(id)
@@ -168,6 +172,10 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         saldo = self.get_saldo(klient_id)
+        
+        saldo_przed_p = saldo["palety"]
+        saldo_przed_po = saldo["pojemniki"]
+        
         new_palety = saldo["palety"] + palety_zmiana
         new_pojemniki = saldo["pojemniki"] + pojemniki_zmiana
         
@@ -184,15 +192,19 @@ class Database:
             )
         
         cursor.execute(
-            "INSERT INTO transakcje (klient_id, typ, palety, pojemniki, kierowca, pracownik_id) VALUES (?, ?, ?, ?, ?, ?)",
-            (klient_id, typ, palety_zmiana, pojemniki_zmiana, kierowca, pracownik_id)
+            """INSERT INTO transakcje 
+            (klient_id, typ, palety, pojemniki, kierowca, pracownik_id, 
+             saldo_przed_palety, saldo_przed_pojemniki, saldo_po_palety, saldo_po_pojemniki) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (klient_id, typ, palety_zmiana, pojemniki_zmiana, kierowca, pracownik_id,
+             saldo_przed_p, saldo_przed_po, new_palety, new_pojemniki)
         )
         conn.commit()
         conn.close()
         
         if typ == "PRZYJECIE":
             self.update_magazyn(palety_zmiana)
-        else:
+        elif typ == "WYDANIE":
             self.update_magazyn(-palety_zmiana)
         
         return {"palety": new_palety, "pojemniki": new_pojemniki}
