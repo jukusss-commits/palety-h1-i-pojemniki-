@@ -45,6 +45,15 @@ class Database:
         """)
         
         cursor.execute("""
+        CREATE TABLE IF NOT EXISTS magazyn (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            palety INTEGER DEFAULT 0,
+            pojemniki INTEGER DEFAULT 0,
+            data_zmiana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        
+        cursor.execute("""
         CREATE TABLE IF NOT EXISTS transakcje (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             klient_id INTEGER NOT NULL,
@@ -62,6 +71,10 @@ class Database:
         cursor.execute("SELECT * FROM pracownicy WHERE pin = '0000'")
         if not cursor.fetchone():
             cursor.execute("INSERT INTO pracownicy (nazwa, pin, rola) VALUES ('Admin', '0000', 'admin')")
+        
+        cursor.execute("SELECT * FROM magazyn")
+        if not cursor.fetchone():
+            cursor.execute("INSERT INTO magazyn (palety, pojemniki) VALUES (0, 0)")
         
         conn.commit()
         conn.close()
@@ -116,6 +129,30 @@ class Database:
             return dict(result)
         return {"palety": 0, "pojemniki": 0}
 
+    def get_magazyn(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT palety, pojemniki FROM magazyn LIMIT 1")
+        result = cursor.fetchone()
+        conn.close()
+        if result:
+            return dict(result)
+        return {"palety": 0, "pojemniki": 0}
+
+    def update_magazyn(self, palety_zmiana=0, pojemniki_zmiana=0):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        mag = self.get_magazyn()
+        new_palety = mag["palety"] + palety_zmiana
+        new_pojemniki = mag["pojemniki"] + pojemniki_zmiana
+        cursor.execute(
+            "UPDATE magazyn SET palety = ?, pojemniki = ?, data_zmiana = CURRENT_TIMESTAMP WHERE id = 1",
+            (new_palety, new_pojemniki)
+        )
+        conn.commit()
+        conn.close()
+        return {"palety": new_palety, "pojemniki": new_pojemniki}
+
     def update_saldo(self, klient_id, palety_zmiana=0, pojemniki_zmiana=0, kierowca="", typ="PRZYJECIE", pracownik_id=None):
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -141,6 +178,12 @@ class Database:
         )
         conn.commit()
         conn.close()
+        
+        if typ == "PRZYJECIE":
+            self.update_magazyn(palety_zmiana, pojemniki_zmiana)
+        else:
+            self.update_magazyn(-palety_zmiana, -pojemniki_zmiana)
+        
         return {"palety": new_palety, "pojemniki": new_pojemniki}
 
     def get_historia(self, klient_id, limit=10):
