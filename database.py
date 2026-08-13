@@ -33,6 +33,32 @@ class Database:
         )
         """)
         
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS saldo (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            klient_id INTEGER NOT NULL,
+            palety INTEGER DEFAULT 0,
+            pojemniki INTEGER DEFAULT 0,
+            data_zmiana TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(klient_id) REFERENCES klienci(id)
+        )
+        """)
+        
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS transakcje (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            klient_id INTEGER NOT NULL,
+            typ TEXT NOT NULL,
+            palety INTEGER DEFAULT 0,
+            pojemniki INTEGER DEFAULT 0,
+            kierowca TEXT,
+            pracownik_id INTEGER,
+            data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(klient_id) REFERENCES klienci(id),
+            FOREIGN KEY(pracownik_id) REFERENCES pracownicy(id)
+        )
+        """)
+        
         cursor.execute("SELECT * FROM pracownicy WHERE pin = '0000'")
         if not cursor.fetchone():
             cursor.execute("INSERT INTO pracownicy (nazwa, pin, rola) VALUES ('Admin', '0000', 'admin')")
@@ -47,5 +73,85 @@ class Database:
         result = cursor.fetchone()
         conn.close()
         return dict(result) if result else None
+
+    def add_pracownik(self, nazwa, pin, rola="pracownik"):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO pracownicy (nazwa, pin, rola) VALUES (?, ?, ?)", (nazwa, pin, rola))
+            conn.commit()
+            return True
+        except:
+            return False
+        finally:
+            conn.close()
+
+    def add_klient(self, nazwa):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO klienci (nazwa) VALUES (?)", (nazwa,))
+            conn.commit()
+            return True
+        except:
+            return False
+        finally:
+            conn.close()
+
+    def get_all_klienci(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM klienci ORDER BY nazwa")
+        result = cursor.fetchall()
+        conn.close()
+        return [dict(r) for r in result]
+
+    def get_saldo(self, klient_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT palety, pojemniki FROM saldo WHERE klient_id = ?", (klient_id,))
+        result = cursor.fetchone()
+        conn.close()
+        if result:
+            return dict(result)
+        return {"palety": 0, "pojemniki": 0}
+
+    def update_saldo(self, klient_id, palety_zmiana=0, pojemniki_zmiana=0, kierowca="", typ="PRZYJECIE", pracownik_id=None):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        saldo = self.get_saldo(klient_id)
+        new_palety = saldo["palety"] + palety_zmiana
+        new_pojemniki = saldo["pojemniki"] + pojemniki_zmiana
+        
+        cursor.execute("SELECT id FROM saldo WHERE klient_id = ?", (klient_id,))
+        if cursor.fetchone():
+            cursor.execute(
+                "UPDATE saldo SET palety = ?, pojemniki = ?, data_zmiana = CURRENT_TIMESTAMP WHERE klient_id = ?",
+                (new_palety, new_pojemniki, klient_id)
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO saldo (klient_id, palety, pojemniki) VALUES (?, ?, ?)",
+                (klient_id, new_palety, new_pojemniki)
+            )
+        
+        cursor.execute(
+            "INSERT INTO transakcje (klient_id, typ, palety, pojemniki, kierowca, pracownik_id) VALUES (?, ?, ?, ?, ?, ?)",
+            (klient_id, typ, palety_zmiana, pojemniki_zmiana, kierowca, pracownik_id)
+        )
+        conn.commit()
+        conn.close()
+        return {"palety": new_palety, "pojemniki": new_pojemniki}
+
+    def get_historia(self, klient_id, limit=10):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM transakcje WHERE klient_id = ? ORDER BY data DESC LIMIT ?",
+            (klient_id, limit)
+        )
+        result = cursor.fetchall()
+        conn.close()
+        return [dict(r) for r in result]
 
 db = Database()
