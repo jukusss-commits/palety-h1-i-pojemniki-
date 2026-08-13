@@ -29,7 +29,8 @@ class Database:
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS klienci (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nazwa TEXT UNIQUE NOT NULL
+            nazwa TEXT UNIQUE NOT NULL,
+            nip TEXT UNIQUE
         )
         """)
         
@@ -98,11 +99,11 @@ class Database:
         finally:
             conn.close()
 
-    def add_klient(self, nazwa):
+    def add_klient(self, nazwa, nip=""):
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute("INSERT INTO klienci (nazwa) VALUES (?)", (nazwa,))
+            cursor.execute("INSERT INTO klienci (nazwa, nip) VALUES (?, ?)", (nazwa, nip if nip else None))
             conn.commit()
             return True
         except:

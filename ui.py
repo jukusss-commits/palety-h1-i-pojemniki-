@@ -78,7 +78,7 @@ class MainWindow(tk.Tk):
         search_frame = tk.Frame(main_frame, bg="white")
         search_frame.pack(fill="x", pady=10)
         
-        search_label = tk.Label(search_frame, text="Szukaj:", font=("Arial", 12, "bold"), bg="white")
+        search_label = tk.Label(search_frame, text="Szukaj (nazwa/NIP):", font=("Arial", 12, "bold"), bg="white")
         search_label.pack(side="left", padx=5)
         
         self.search_entry = tk.Entry(search_frame, font=("Arial", 12), width=20)
@@ -93,8 +93,12 @@ class MainWindow(tk.Tk):
         
         self.klient_var = tk.StringVar(value="")
         self.all_klienci = db.get_all_klienci()
-        self.klient_data = {k['nazwa']: k['id'] for k in self.all_klienci}
-        klient_names = list(self.klient_data.keys())
+        self.klient_display = {}
+        for k in self.all_klienci:
+            display_name = f"{k['nazwa']} ({k['nip']})" if k['nip'] else k['nazwa']
+            self.klient_display[display_name] = k['id']
+        
+        klient_names = list(self.klient_display.keys())
         
         self.klient_combo = ttk.Combobox(top_frame, textvariable=self.klient_var, values=klient_names, font=("Arial", 12), state="readonly")
         self.klient_combo.pack(side="left", padx=5, fill="x", expand=True)
@@ -186,7 +190,11 @@ class MainWindow(tk.Tk):
     def on_search(self, event):
         search_text = self.search_entry.get().lower()
         
-        filtered = [k for k in self.klient_data.keys() if search_text in k.lower()]
+        filtered = []
+        for k in self.all_klienci:
+            display_name = f"{k['nazwa']} ({k['nip']})" if k['nip'] else k['nazwa']
+            if search_text in k['nazwa'].lower() or (k['nip'] and search_text in k['nip'].lower()):
+                filtered.append(display_name)
         
         self.klient_combo['values'] = sorted(filtered)
     
@@ -200,14 +208,11 @@ class MainWindow(tk.Tk):
         self.load_last_kierowca()
     
     def load_last_kierowca(self):
-        klient_name = self.klient_var.get()
-        if not klient_name:
+        klient_display = self.klient_var.get()
+        if not klient_display or klient_display not in self.klient_display:
             return
         
-        if klient_name not in self.klient_data:
-            return
-        
-        klient_id = self.klient_data[klient_name]
+        klient_id = self.klient_display[klient_display]
         historia = db.get_historia(klient_id, 1)
         
         if historia and historia[0]['kierowca']:
@@ -215,10 +220,10 @@ class MainWindow(tk.Tk):
             self.kierowca_input.insert(0, historia[0]['kierowca'])
     
     def update_saldo(self):
-        klient_name = self.klient_var.get()
-        if not klient_name:
+        klient_display = self.klient_var.get()
+        if not klient_display or klient_display not in self.klient_display:
             return
-        klient_id = self.klient_data[klient_name]
+        klient_id = self.klient_display[klient_display]
         saldo = db.get_saldo(klient_id)
         self.palety_label.config(text=f"PALETY: {saldo['palety']}")
         self.pojemniki_label.config(text=f"POJEMNIKI: {saldo['pojemniki']}")
@@ -227,11 +232,11 @@ class MainWindow(tk.Tk):
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        klient_name = self.klient_var.get()
-        if not klient_name:
+        klient_display = self.klient_var.get()
+        if not klient_display or klient_display not in self.klient_display:
             return
         
-        klient_id = self.klient_data[klient_name]
+        klient_id = self.klient_display[klient_display]
         historia = db.get_historia(klient_id, 10)
         
         for trans in historia:
@@ -245,17 +250,17 @@ class MainWindow(tk.Tk):
             ))
     
     def show_historia_window(self):
-        klient_name = self.klient_var.get()
-        if not klient_name:
+        klient_display = self.klient_var.get()
+        if not klient_display or klient_display not in self.klient_display:
             messagebox.showerror("Blad", "Wybierz klienta!")
             return
         
-        klient_id = self.klient_data[klient_name]
+        klient_id = self.klient_display[klient_display]
         historia_win = tk.Toplevel(self)
-        historia_win.title(f"Historia - {klient_name}")
+        historia_win.title(f"Historia - {klient_display}")
         historia_win.geometry("900x600")
         
-        title_label = tk.Label(historia_win, text=f"Historia transakcji: {klient_name}", font=("Arial", 14, "bold"))
+        title_label = tk.Label(historia_win, text=f"Historia transakcji: {klient_display}", font=("Arial", 14, "bold"))
         title_label.pack(pady=10)
         
         columns = ("Data", "Typ", "Palety", "Pojemniki", "Kierowca")
@@ -281,21 +286,21 @@ class MainWindow(tk.Tk):
         btn_frame = tk.Frame(historia_win)
         btn_frame.pack(fill="x", padx=10, pady=10)
         
-        btn_druk = tk.Button(btn_frame, text="Drukuj", command=lambda: self.drukuj_historie(klient_name, historia), font=("Arial", 12), bg="#4CAF50", fg="white")
+        btn_druk = tk.Button(btn_frame, text="Drukuj", command=lambda: self.drukuj_historie(klient_display, historia), font=("Arial", 12), bg="#4CAF50", fg="white")
         btn_druk.pack(side="left", padx=5)
         
         btn_close = tk.Button(btn_frame, text="Zamknij", command=historia_win.destroy, font=("Arial", 12))
         btn_close.pack(side="left", padx=5)
     
-    def drukuj_historie(self, klient_name, historia):
-        klient_id = self.klient_data[klient_name]
+    def drukuj_historie(self, klient_display, historia):
+        klient_id = self.klient_display[klient_display]
         historia = db.get_historia(klient_id, 100)
         
-        plik = f"historia_{klient_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        plik = f"historia_{klient_display.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         
         with open(plik, 'w', encoding='utf-8') as f:
             f.write("="*70 + "\n")
-            f.write(f"HISTORIA TRANSAKCJI: {klient_name}\n")
+            f.write(f"HISTORIA TRANSAKCJI: {klient_display}\n")
             f.write(f"Data wydruku: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write("="*70 + "\n\n")
             
@@ -312,8 +317,8 @@ class MainWindow(tk.Tk):
         messagebox.showinfo("OK", f"Historia wydrukowana do: {plik}")
     
     def rozlicz(self):
-        klient_name = self.klient_var.get()
-        if not klient_name:
+        klient_display = self.klient_var.get()
+        if not klient_display or klient_display not in self.klient_display:
             messagebox.showerror("Blad", "Wybierz klienta!")
             return
         
@@ -331,7 +336,7 @@ class MainWindow(tk.Tk):
             return
         
         kierowca = self.kierowca_input.get()
-        klient_id = self.klient_data[klient_name]
+        klient_id = self.klient_display[klient_display]
         
         if przyjete_p > 0 or przyjete_po > 0:
             db.update_saldo(klient_id, przyjete_p, przyjete_po, kierowca, "PRZYJECIE", self.user['id'])
