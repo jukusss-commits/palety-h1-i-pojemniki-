@@ -102,14 +102,26 @@ class Database:
     def add_klient(self, nazwa, nip=""):
         conn = self.get_connection()
         cursor = conn.cursor()
+        
+        cursor.execute("SELECT * FROM klienci WHERE nazwa = ?", (nazwa,))
+        if cursor.fetchone():
+            conn.close()
+            return {"status": False, "error": "nazwa_exists"}
+        
+        if nip:
+            cursor.execute("SELECT * FROM klienci WHERE nip = ?", (nip,))
+            if cursor.fetchone():
+                conn.close()
+                return {"status": False, "error": "nip_exists"}
+        
         try:
             cursor.execute("INSERT INTO klienci (nazwa, nip) VALUES (?, ?)", (nazwa, nip if nip else None))
             conn.commit()
-            return True
-        except:
-            return False
-        finally:
             conn.close()
+            return {"status": True}
+        except:
+            conn.close()
+            return {"status": False, "error": "unknown"}
 
     def get_all_klienci(self):
         conn = self.get_connection()

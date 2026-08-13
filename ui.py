@@ -100,7 +100,7 @@ class MainWindow(tk.Tk):
         self.klient_var = tk.StringVar(value="")
         self.refresh_klienci()
         
-        self.klient_combo = ttk.Combobox(top_frame, textvariable=self.klient_var, values=list(self.klient_display.keys()), font=("Arial", 12), state="readonly")
+        self.klient_combo = ttk.Combobox(top_frame, textvariable=self.klient_var, values=sorted(self.klient_display.keys()), font=("Arial", 12), state="readonly", width=40)
         self.klient_combo.pack(side="left", padx=5, fill="x", expand=True)
         self.klient_combo.bind('<<ComboboxSelected>>', lambda e: self.on_klient_change(self.klient_var.get()))
         
@@ -208,23 +208,34 @@ class MainWindow(tk.Tk):
         nip_entry.pack(pady=5)
         
         def save_klient():
-            nazwa = nazwa_entry.get()
-            nip = nip_entry.get()
+            nazwa = nazwa_entry.get().strip()
+            nip = nip_entry.get().strip()
             if not nazwa:
                 messagebox.showerror("Blad", "Wpisz nazwę!")
                 return
-            if db.add_klient(nazwa, nip):
+            result = db.add_klient(nazwa, nip if nip else "")
+            if result["status"]:
                 messagebox.showinfo("OK", "Klient dodany!")
                 self.refresh_klienci()
                 self.klient_combo['values'] = sorted(self.klient_display.keys())
+                self.search_entry.delete(0, "end")
                 add_win.destroy()
             else:
-                messagebox.showerror("Blad", "Klient już istnieje!")
+                if result["error"] == "nazwa_exists":
+                    messagebox.showerror("Blad", "Nazwa już istnieje!")
+                elif result["error"] == "nip_exists":
+                    messagebox.showerror("Blad", "NIP już istnieje!")
+                else:
+                    messagebox.showerror("Blad", "Błąd przy dodawaniu!")
         
         tk.Button(add_win, text="Dodaj", command=save_klient, font=("Arial", 12), bg="#4CAF50", fg="white").pack(pady=10)
     
     def on_search(self, event):
-        search_text = self.search_entry.get().lower()
+        search_text = self.search_entry.get().lower().strip()
+        
+        if not search_text:
+            self.klient_combo['values'] = sorted(self.klient_display.keys())
+            return
         
         filtered = []
         for display_name in self.klient_display.keys():
