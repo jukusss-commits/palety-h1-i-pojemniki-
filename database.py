@@ -48,7 +48,6 @@ class Database:
         CREATE TABLE IF NOT EXISTS magazyn (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             palety INTEGER DEFAULT 0,
-            pojemniki INTEGER DEFAULT 0,
             data_zmiana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """)
@@ -74,7 +73,7 @@ class Database:
         
         cursor.execute("SELECT * FROM magazyn")
         if not cursor.fetchone():
-            cursor.execute("INSERT INTO magazyn (palety, pojemniki) VALUES (0, 0)")
+            cursor.execute("INSERT INTO magazyn (palety) VALUES (0)")
         
         conn.commit()
         conn.close()
@@ -132,26 +131,25 @@ class Database:
     def get_magazyn(self):
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT palety, pojemniki FROM magazyn LIMIT 1")
+        cursor.execute("SELECT palety FROM magazyn LIMIT 1")
         result = cursor.fetchone()
         conn.close()
         if result:
             return dict(result)
-        return {"palety": 0, "pojemniki": 0}
+        return {"palety": 0}
 
-    def update_magazyn(self, palety_zmiana=0, pojemniki_zmiana=0):
+    def update_magazyn(self, palety_zmiana=0):
         conn = self.get_connection()
         cursor = conn.cursor()
         mag = self.get_magazyn()
         new_palety = mag["palety"] + palety_zmiana
-        new_pojemniki = mag["pojemniki"] + pojemniki_zmiana
         cursor.execute(
-            "UPDATE magazyn SET palety = ?, pojemniki = ?, data_zmiana = CURRENT_TIMESTAMP WHERE id = 1",
-            (new_palety, new_pojemniki)
+            "UPDATE magazyn SET palety = ?, data_zmiana = CURRENT_TIMESTAMP WHERE id = 1",
+            (new_palety,)
         )
         conn.commit()
         conn.close()
-        return {"palety": new_palety, "pojemniki": new_pojemniki}
+        return {"palety": new_palety}
 
     def update_saldo(self, klient_id, palety_zmiana=0, pojemniki_zmiana=0, kierowca="", typ="PRZYJECIE", pracownik_id=None):
         conn = self.get_connection()
@@ -180,9 +178,9 @@ class Database:
         conn.close()
         
         if typ == "PRZYJECIE":
-            self.update_magazyn(palety_zmiana, pojemniki_zmiana)
+            self.update_magazyn(palety_zmiana)
         else:
-            self.update_magazyn(-palety_zmiana, -pojemniki_zmiana)
+            self.update_magazyn(-palety_zmiana)
         
         return {"palety": new_palety, "pojemniki": new_pojemniki}
 

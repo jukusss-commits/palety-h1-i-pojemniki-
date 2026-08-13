@@ -74,9 +74,6 @@ class MainWindow(tk.Tk):
         self.mag_palety_label = tk.Label(magazyn_inner, text="PALETY: 0", font=("Arial", 14, "bold"), bg="#FFE082")
         self.mag_palety_label.pack(side="left", padx=20)
         
-        self.mag_pojemniki_label = tk.Label(magazyn_inner, text="POJEMNIKI: 0", font=("Arial", 14, "bold"), bg="#FFE082")
-        self.mag_pojemniki_label.pack(side="left", padx=20)
-        
         top_frame = tk.Frame(main_frame, bg="white")
         top_frame.pack(fill="x", pady=10)
         
@@ -174,7 +171,6 @@ class MainWindow(tk.Tk):
     def update_magazyn_display(self):
         mag = db.get_magazyn()
         self.mag_palety_label.config(text=f"PALETY: {mag['palety']}")
-        self.mag_pojemniki_label.config(text=f"POJEMNIKI: {mag['pojemniki']}")
     
     def on_klient_change(self, value):
         self.update_saldo()
