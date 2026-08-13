@@ -63,6 +63,12 @@ class MainWindow(tk.Tk):
         main_frame = tk.Frame(self, bg="white")
         main_frame.pack(fill="both", expand=True, padx=20, pady=20)
         
+        top_btn_frame = tk.Frame(main_frame, bg="white")
+        top_btn_frame.pack(fill="x", pady=10)
+        
+        btn_add_klient = tk.Button(top_btn_frame, text="+ Dodaj klienta", command=self.add_klient_window, font=("Arial", 11), bg="#FF9800", fg="white")
+        btn_add_klient.pack(side="left", padx=5)
+        
         magazyn_frame = tk.Frame(main_frame, bg="#FFE082", relief="solid", borderwidth=2)
         magazyn_frame.pack(fill="x", pady=10)
         
@@ -92,15 +98,9 @@ class MainWindow(tk.Tk):
         klient_label.pack(side="left", padx=5)
         
         self.klient_var = tk.StringVar(value="")
-        self.all_klienci = db.get_all_klienci()
-        self.klient_display = {}
-        for k in self.all_klienci:
-            display_name = f"{k['nazwa']} ({k['nip']})" if k['nip'] else k['nazwa']
-            self.klient_display[display_name] = k['id']
+        self.refresh_klienci()
         
-        klient_names = list(self.klient_display.keys())
-        
-        self.klient_combo = ttk.Combobox(top_frame, textvariable=self.klient_var, values=klient_names, font=("Arial", 12), state="readonly")
+        self.klient_combo = ttk.Combobox(top_frame, textvariable=self.klient_var, values=list(self.klient_display.keys()), font=("Arial", 12), state="readonly")
         self.klient_combo.pack(side="left", padx=5, fill="x", expand=True)
         self.klient_combo.bind('<<ComboboxSelected>>', lambda e: self.on_klient_change(self.klient_var.get()))
         
@@ -187,13 +187,48 @@ class MainWindow(tk.Tk):
         
         self.update_magazyn_display()
     
+    def refresh_klienci(self):
+        self.all_klienci = db.get_all_klienci()
+        self.klient_display = {}
+        for k in self.all_klienci:
+            display_name = f"{k['nazwa']} ({k['nip']})" if k['nip'] else k['nazwa']
+            self.klient_display[display_name] = k['id']
+    
+    def add_klient_window(self):
+        add_win = tk.Toplevel(self)
+        add_win.title("Dodaj klienta")
+        add_win.geometry("400x200")
+        
+        tk.Label(add_win, text="Nazwa:", font=("Arial", 12)).pack(pady=5)
+        nazwa_entry = tk.Entry(add_win, font=("Arial", 12), width=40)
+        nazwa_entry.pack(pady=5)
+        
+        tk.Label(add_win, text="NIP (opcjonalnie):", font=("Arial", 12)).pack(pady=5)
+        nip_entry = tk.Entry(add_win, font=("Arial", 12), width=40)
+        nip_entry.pack(pady=5)
+        
+        def save_klient():
+            nazwa = nazwa_entry.get()
+            nip = nip_entry.get()
+            if not nazwa:
+                messagebox.showerror("Blad", "Wpisz nazwę!")
+                return
+            if db.add_klient(nazwa, nip):
+                messagebox.showinfo("OK", "Klient dodany!")
+                self.refresh_klienci()
+                self.klient_combo['values'] = sorted(self.klient_display.keys())
+                add_win.destroy()
+            else:
+                messagebox.showerror("Blad", "Klient już istnieje!")
+        
+        tk.Button(add_win, text="Dodaj", command=save_klient, font=("Arial", 12), bg="#4CAF50", fg="white").pack(pady=10)
+    
     def on_search(self, event):
         search_text = self.search_entry.get().lower()
         
         filtered = []
-        for k in self.all_klienci:
-            display_name = f"{k['nazwa']} ({k['nip']})" if k['nip'] else k['nazwa']
-            if search_text in k['nazwa'].lower() or (k['nip'] and search_text in k['nip'].lower()):
+        for display_name in self.klient_display.keys():
+            if search_text in display_name.lower():
                 filtered.append(display_name)
         
         self.klient_combo['values'] = sorted(filtered)
