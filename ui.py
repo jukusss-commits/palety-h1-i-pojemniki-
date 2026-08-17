@@ -755,14 +755,12 @@ class DashboardKierownika(tk.Tk):
         # TAB 1: ROZBIEŻNOŚCI
         tab_rozbieznosci = tk.Frame(notebook, bg="white")
         notebook.add(tab_rozbieznosci, text="Rozbieżności")
-        
         self.refresh_rozbieznosci(tab_rozbieznosci)
         
-        # TAB 2: PRACOWNICY
-        tab_pracownicy = tk.Frame(notebook, bg="white")
-        notebook.add(tab_pracownicy, text="Pracownicy")
-        
-        self.show_pracownicy(tab_pracownicy)
+        # TAB 2: STATUS PRACOWNIKÓW
+        tab_status = tk.Frame(notebook, bg="white")
+        notebook.add(tab_status, text="Status pracowników")
+        self.show_status_pracownikow(tab_status)
         
         # LOGOUT
         logout_btn = tk.Button(self, text="Wyloguj", command=self.logout, bg="#757575", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10)
@@ -840,23 +838,29 @@ class DashboardKierownika(tk.Tk):
         
         tk.Button(action_frame, text="✅ Zatwierdź rozbieżność", command=zatwierdz, font=("Arial", 11, "bold"), bg="#4CAF50", fg="white", padx=20, pady=8).pack(side="left", padx=5)
     
-    def show_pracownicy(self, parent):
-        tk.Label(parent, text="LISTA PRACOWNIKÓW", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
+    def show_status_pracownikow(self, parent):
+        tk.Label(parent, text="STATUS PRACOWNIKÓW", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
         
         tree_frame = tk.Frame(parent, bg="white")
         tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        columns = ("Nazwa", "Rola", "PIN")
+        columns = ("Pracownik", "Status", "Rozbieżności")
         tree = ttk.Treeview(tree_frame, columns=columns, height=20, show="headings")
         
-        widths = [200, 150, 100]
+        widths = [200, 150, 150]
         for col, width in zip(columns, widths):
             tree.heading(col, text=col)
             tree.column(col, width=width)
         
         pracownicy = db.get_all_pracownicy()
         for p in pracownicy:
-            tree.insert("", "end", values=(p['nazwa'], p['rola'], "***"))
+            if p['rola'] == 'pracownik':
+                aktywna = db.get_aktywna_zmiana(p['id'])
+                rozbieznosci = db.get_rozbieznosci_pracownika(p['id'])
+                otwarte = len([r for r in rozbieznosci if r['status'] == 'czeka'])
+                
+                status = "Online" if aktywna else "Offline"
+                tree.insert("", "end", values=(p['nazwa'], status, f"{otwarte} do wyjaśnienia"))
         
         tree.pack(fill="both", expand=True)
     
@@ -887,13 +891,23 @@ class PanelAdmina(tk.Tk):
         
         # TAB 1: PRACOWNICY
         tab_pracownicy = tk.Frame(notebook, bg="white")
-        notebook.add(tab_pracownicy, text="Zarządzaj pracownikami")
+        notebook.add(tab_pracownicy, text="Pracownicy")
         self.show_pracownicy_admin(tab_pracownicy)
         
         # TAB 2: ROZBIEŻNOŚCI
         tab_rozbieznosci = tk.Frame(notebook, bg="white")
         notebook.add(tab_rozbieznosci, text="Rozbieżności")
         self.show_rozbieznosci_admin(tab_rozbieznosci)
+        
+        # TAB 3: KLIENCI
+        tab_klienci = tk.Frame(notebook, bg="white")
+        notebook.add(tab_klienci, text="Klienci")
+        self.show_klienci_admin(tab_klienci)
+        
+        # TAB 4: MAGAZYN
+        tab_magazyn = tk.Frame(notebook, bg="white")
+        notebook.add(tab_magazyn, text="Stan magazynu")
+        self.show_magazyn_admin(tab_magazyn)
         
         logout_btn = tk.Button(self, text="Wyloguj", command=self.logout, bg="#757575", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10)
         logout_btn.pack(pady=10, padx=20, fill="x")
@@ -919,7 +933,7 @@ class PanelAdmina(tk.Tk):
             pin.pack(pady=5)
             
             tk.Label(add_win, text="Rola:", font=("Arial", 11, "bold")).pack(pady=5)
-            rola = ttk.Combobox(add_win, values=["pracownik", "kierownik", "magazynier"], font=("Arial", 11), width=37, state="readonly")
+            rola = ttk.Combobox(add_win, values=["pracownik", "kierownik", "magazynier", "admin"], font=("Arial", 11), width=37, state="readonly")
             rola.pack(pady=5)
             rola.set("pracownik")
             
@@ -938,17 +952,17 @@ class PanelAdmina(tk.Tk):
         tree_frame = tk.Frame(parent, bg="white")
         tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        columns = ("ID", "Nazwa", "Rola", "PIN")
+        columns = ("ID", "Nazwa", "Rola")
         tree = ttk.Treeview(tree_frame, columns=columns, height=20, show="headings")
         
-        widths = [50, 200, 150, 100]
+        widths = [50, 200, 150]
         for col, width in zip(columns, widths):
             tree.heading(col, text=col)
             tree.column(col, width=width)
         
         pracownicy = db.get_all_pracownicy()
         for p in pracownicy:
-            tree.insert("", "end", values=(p['id'], p['nazwa'], p['rola'], "***"))
+            tree.insert("", "end", values=(p['id'], p['nazwa'], p['rola']))
         
         tree.pack(fill="both", expand=True)
     
@@ -972,6 +986,36 @@ class PanelAdmina(tk.Tk):
             tree.insert("", "end", values=(r['pracownik_nazwa'], data, f"{r['roznica']:+d}", r['status'].upper()))
         
         tree.pack(fill="both", expand=True)
+    
+    def show_klienci_admin(self, parent):
+        tk.Label(parent, text="KLIENCI", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
+        
+        tree_frame = tk.Frame(parent, bg="white")
+        tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        columns = ("ID", "Nazwa", "NIP")
+        tree = ttk.Treeview(tree_frame, columns=columns, height=20, show="headings")
+        
+        widths = [50, 300, 200]
+        for col, width in zip(columns, widths):
+            tree.heading(col, text=col)
+            tree.column(col, width=width)
+        
+        klienci = db.get_all_klienci()
+        for k in klienci:
+            tree.insert("", "end", values=(k['id'], k['nazwa'], k['nip'] or "-"))
+        
+        tree.pack(fill="both", expand=True)
+    
+    def show_magazyn_admin(self, parent):
+        tk.Label(parent, text="STAN MAGAZYNU", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
+        
+        mag = db.get_magazyn()
+        
+        info_frame = tk.Frame(parent, bg="#E3F2FD", relief="solid", borderwidth=2)
+        info_frame.pack(fill="x", padx=20, pady=20)
+        
+        tk.Label(info_frame, text=f"Palety w magazynie: {mag['palety']}", font=("Arial", 18, "bold"), bg="#E3F2FD", fg="#1976D2").pack(pady=20)
     
     def logout(self):
         self.destroy()
