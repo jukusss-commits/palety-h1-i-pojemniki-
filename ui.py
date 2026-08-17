@@ -176,9 +176,6 @@ class MainWindow(tk.Tk):
         btn_historia = tk.Button(btn_frame, text="📖 Historia transakcji", command=self.show_historia_window, font=("Arial", 11), bg="#2196F3", fg="white", padx=20, pady=8)
         btn_historia.pack(fill="x", pady=(5, 0))
         
-        btn_druk_paragon = tk.Button(btn_frame, text="🧾 Druk paragonu", command=self.print_paragon, font=("Arial", 11), bg="#9C27B0", fg="white", padx=20, pady=8)
-        btn_druk_paragon.pack(fill="x", pady=(5, 0))
-        
         logout_btn = tk.Button(self, text="Wyloguj", command=self.logout, bg="#FF6B6B", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10)
         logout_btn.pack(pady=10, padx=20, fill="x")
         
@@ -345,7 +342,7 @@ class MainWindow(tk.Tk):
         
         tk.Button(historia_win, text="🖨️ Drukuj", command=drukuj, font=("Arial", 11, "bold"), bg="#FF9800", fg="white", padx=20, pady=8).pack(pady=10)
     
-    def print_paragon(self):
+    def rozlicz(self):
         if not self.selected_klient_id:
             messagebox.showerror("Błąd", "Wybierz klienta!")
             return
@@ -360,11 +357,68 @@ class MainWindow(tk.Tk):
             return
         
         if przyjete_p == 0 and przyjete_po == 0 and wydane_p == 0 and wydane_po == 0:
-            messagebox.showerror("Błąd", "Brak danych do wydruku!")
+            messagebox.showerror("Błąd", "Wpisz co najmniej jedną wartość!")
             return
         
+        kierowca = self.kierowca_entry.get().strip()
+        
+        # Pytaj o wydruk PRZED rozliczeniem
+        druk_win = tk.Toplevel(self)
+        druk_win.title("Druk paragonu?")
+        druk_win.geometry("400x300")
+        druk_win.resizable(False, False)
+        
+        tk.Label(druk_win, text="Czy chcesz wydrukować paragon?", font=("Arial", 12, "bold")).pack(pady=20)
+        
+        info_frame = tk.Frame(druk_win, bg="#F5F5F5")
+        info_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        
+        tk.Label(info_frame, text=f"Przyjęte palety: {przyjete_p}", font=("Arial", 11)).pack(anchor="w", pady=5)
+        tk.Label(info_frame, text=f"Przyjęte pojemniki: {przyjete_po}", font=("Arial", 11)).pack(anchor="w", pady=5)
+        tk.Label(info_frame, text=f"Wydane palety: {wydane_p}", font=("Arial", 11)).pack(anchor="w", pady=5)
+        tk.Label(info_frame, text=f"Wydane pojemniki: {wydane_po}", font=("Arial", 11)).pack(anchor="w", pady=5)
+        
+        netto_p = przyjete_p - wydane_p
+        netto_po = przyjete_po - wydane_po
+        tk.Label(info_frame, text=f"\nNetto palety: {netto_p}", font=("Arial", 11, "bold"), fg="#1976D2").pack(anchor="w", pady=5)
+        tk.Label(info_frame, text=f"Netto pojemniki: {netto_po}", font=("Arial", 11, "bold"), fg="#1976D2").pack(anchor="w", pady=5)
+        
+        btn_frame = tk.Frame(druk_win)
+        btn_frame.pack(fill="x", padx=20, pady=20)
+        
+        def rozlicz_i_drukuj():
+            if przyjete_p > 0 or przyjete_po > 0:
+                db.update_saldo(self.selected_klient_id, przyjete_p, przyjete_po, kierowca, "PRZYJECIE", self.user['id'])
+            
+            if wydane_p > 0 or wydane_po > 0:
+                db.update_saldo(self.selected_klient_id, -wydane_p, -wydane_po, kierowca, "WYDANIE", self.user['id'])
+            
+            self.drukuj_paragon_z_danymi(przyjete_p, przyjete_po, wydane_p, wydane_po, kierowca)
+            
+            messagebox.showinfo("✅ Sukces", "Rozliczenie i druk wykonane!")
+            self.clear_inputs()
+            self.update_saldo()
+            self.update_magazyn_display()
+            druk_win.destroy()
+        
+        def rozlicz_bez_druku():
+            if przyjete_p > 0 or przyjete_po > 0:
+                db.update_saldo(self.selected_klient_id, przyjete_p, przyjete_po, kierowca, "PRZYJECIE", self.user['id'])
+            
+            if wydane_p > 0 or wydane_po > 0:
+                db.update_saldo(self.selected_klient_id, -wydane_p, -wydane_po, kierowca, "WYDANIE", self.user['id'])
+            
+            messagebox.showinfo("✅ Sukces", "Rozliczenie zapisane (bez druku)!")
+            self.clear_inputs()
+            self.update_saldo()
+            self.update_magazyn_display()
+            druk_win.destroy()
+        
+        tk.Button(btn_frame, text="✅ TAK - Drukuj", command=rozlicz_i_drukuj, font=("Arial", 12, "bold"), bg="#4CAF50", fg="white", padx=20, pady=10).pack(fill="x", pady=5)
+        tk.Button(btn_frame, text="❌ NIE - Bez druku", command=rozlicz_bez_druku, font=("Arial", 12, "bold"), bg="#FF9800", fg="white", padx=20, pady=10).pack(fill="x", pady=5)
+    
+    def drukuj_paragon_z_danymi(self, przyjete_p, przyjete_po, wydane_p, wydane_po, kierowca):
         klient_name = self.selected_label.cget("text")
-        kierowca = self.kierowca_entry.get().strip() or "Brak"
         pracownik = self.user['nazwa']
         
         plik = f"paragon_{klient_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
@@ -376,7 +430,7 @@ class MainWindow(tk.Tk):
             
             f.write(f"Data:              {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"Klient:            {klient_name}\n")
-            f.write(f"Kierowca:          {kierowca}\n")
+            f.write(f"Kierowca:          {kierowca or 'Brak'}\n")
             f.write(f"Pracownik:         {pracownik}\n\n")
             
             f.write("─"*80 + "\n")
@@ -406,39 +460,6 @@ class MainWindow(tk.Tk):
             f.write("║" + " "*78 + "║\n")
             f.write("║" + " "*78 + "║\n")
             f.write("╚" + "═"*78 + "╝\n")
-        
-        messagebox.showinfo("✅ Sukces", f"Paragon wydrukowany:\n{plik}\n\nOtwórz i wydrukuj!")
-    
-    def rozlicz(self):
-        if not self.selected_klient_id:
-            messagebox.showerror("Błąd", "Wybierz klienta!")
-            return
-        
-        try:
-            przyjete_p = int(self.przyjete_p.get() or 0)
-            przyjete_po = int(self.przyjete_po.get() or 0)
-            wydane_p = int(self.wydane_p.get() or 0)
-            wydane_po = int(self.wydane_po.get() or 0)
-        except:
-            messagebox.showerror("Błąd", "Wpisz prawidłowe liczby!")
-            return
-        
-        if przyjete_p == 0 and przyjete_po == 0 and wydane_p == 0 and wydane_po == 0:
-            messagebox.showerror("Błąd", "Wpisz co najmniej jedną wartość!")
-            return
-        
-        kierowca = self.kierowca_entry.get().strip()
-        
-        if przyjete_p > 0 or przyjete_po > 0:
-            db.update_saldo(self.selected_klient_id, przyjete_p, przyjete_po, kierowca, "PRZYJECIE", self.user['id'])
-        
-        if wydane_p > 0 or wydane_po > 0:
-            db.update_saldo(self.selected_klient_id, -wydane_p, -wydane_po, kierowca, "WYDANIE", self.user['id'])
-        
-        messagebox.showinfo("✅ Sukces", "Rozliczenie zapisane!")
-        self.clear_inputs()
-        self.update_saldo()
-        self.update_magazyn_display()
     
     def clear_inputs(self):
         self.przyjete_p.delete(0, "end")
