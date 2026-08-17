@@ -153,6 +153,32 @@ class Database:
         finally:
             conn.close()
 
+    def update_pracownik_pin(self, pracownik_id, nowy_pin):
+        """Zmienić PIN pracownika"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("UPDATE pracownicy SET pin = ? WHERE id = ?", (nowy_pin, pracownik_id))
+            conn.commit()
+            return True
+        except:
+            return False
+        finally:
+            conn.close()
+
+    def delete_pracownik(self, pracownik_id):
+        """Usunąć pracownika"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM pracownicy WHERE id = ?", (pracownik_id,))
+            conn.commit()
+            return True
+        except:
+            return False
+        finally:
+            conn.close()
+
     def get_all_pracownicy(self):
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -160,6 +186,14 @@ class Database:
         result = cursor.fetchall()
         conn.close()
         return [dict(r) for r in result]
+
+    def get_pracownik_by_id(self, pracownik_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM pracownicy WHERE id = ?", (pracownik_id,))
+        result = cursor.fetchone()
+        conn.close()
+        return dict(result) if result else None
 
     def add_klient(self, nazwa, nip=""):
         conn = self.get_connection()
