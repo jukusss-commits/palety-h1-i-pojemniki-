@@ -342,7 +342,7 @@ class MainWindow(tk.Tk):
         
         tk.Button(historia_win, text="🖨️ Drukuj", command=drukuj, font=("Arial", 11, "bold"), bg="#FF9800", fg="white", padx=20, pady=8).pack(pady=10)
     
-        def rozlicz(self):
+    def rozlicz(self):
         if not self.selected_klient_id:
             messagebox.showerror("Błąd", "Wybierz klienta!")
             return
@@ -383,7 +383,6 @@ class MainWindow(tk.Tk):
         tk.Label(info_frame, text=f"\nNetto palety: {netto_p}", font=("Arial", 11, "bold"), fg="#1976D2", bg="#F5F5F5").pack(anchor="w", pady=5)
         tk.Label(info_frame, text=f"Netto pojemniki: {netto_po}", font=("Arial", 11, "bold"), fg="#1976D2", bg="#F5F5F5").pack(anchor="w", pady=5)
         
-        # DEFINIUJ FUNKCJE PIERWSZ!
         def rozlicz_i_drukuj():
             if przyjete_p > 0 or przyjete_po > 0:
                 db.update_saldo(self.selected_klient_id, przyjete_p, przyjete_po, kierowca, "PRZYJECIE", self.user['id'])
@@ -412,7 +411,6 @@ class MainWindow(tk.Tk):
             self.update_magazyn_display()
             druk_win.destroy()
         
-        # POTEM PRZYCISKI
         btn_frame = tk.Frame(druk_win, bg="white")
         btn_frame.pack(fill="both", padx=20, pady=20)
         
@@ -420,39 +418,6 @@ class MainWindow(tk.Tk):
         tk.Button(btn_frame, text="❌ NIE - Bez druku", command=rozlicz_bez_druku, font=("Arial", 11, "bold"), bg="#FF9800", fg="white", padx=20, pady=8).pack(fill="x", pady=3)
         tk.Button(btn_frame, text="✏️ POPRAW", command=lambda: druk_win.destroy(), font=("Arial", 11, "bold"), bg="#2196F3", fg="white", padx=20, pady=8).pack(fill="x", pady=3)
         tk.Button(btn_frame, text="❌ ZAMKNIJ", command=lambda: druk_win.destroy(), font=("Arial", 11, "bold"), bg="#9E9E9E", fg="white", padx=20, pady=8).pack(fill="x", pady=3)
-        
-        def rozlicz_i_drukuj():
-            if przyjete_p > 0 or przyjete_po > 0:
-                db.update_saldo(self.selected_klient_id, przyjete_p, przyjete_po, kierowca, "PRZYJECIE", self.user['id'])
-            
-            if wydane_p > 0 or wydane_po > 0:
-                db.update_saldo(self.selected_klient_id, -wydane_p, -wydane_po, kierowca, "WYDANIE", self.user['id'])
-            
-            self.drukuj_paragon_z_danymi(przyjete_p, przyjete_po, wydane_p, wydane_po, kierowca)
-            
-            messagebox.showinfo("✅ Sukces", "Rozliczenie i druk wykonane!")
-            self.clear_inputs()
-            self.update_saldo()
-            self.update_magazyn_display()
-            druk_win.destroy()
-        
-        def rozlicz_bez_druku():
-            if przyjete_p > 0 or przyjete_po > 0:
-                db.update_saldo(self.selected_klient_id, przyjete_p, przyjete_po, kierowca, "PRZYJECIE", self.user['id'])
-            
-            if wydane_p > 0 or wydane_po > 0:
-                db.update_saldo(self.selected_klient_id, -wydane_p, -wydane_po, kierowca, "WYDANIE", self.user['id'])
-            
-            messagebox.showinfo("✅ Sukces", "Rozliczenie zapisane (bez druku)!")
-            self.clear_inputs()
-            self.update_saldo()
-            self.update_magazyn_display()
-            druk_win.destroy()
-        
-        tk.Button(btn_frame, text="✅ TAK - Drukuj", command=rozlicz_i_drukuj, font=("Arial", 12, "bold"), bg="#4CAF50", fg="white", padx=20, pady=10).pack(fill="x", pady=5)
-        tk.Button(btn_frame, text="❌ NIE - Bez druku", command=rozlicz_bez_druku, font=("Arial", 12, "bold"), bg="#FF9800", fg="white", padx=20, pady=10).pack(fill="x", pady=5)
-        tk.Button(btn_frame, text="✏️ POPRAW", command=lambda: druk_win.destroy(), font=("Arial", 12, "bold"), bg="#2196F3", fg="white", padx=20, pady=10).pack(fill="x", pady=5)
-        tk.Button(btn_frame, text="❌ ZAMKNIJ", command=lambda: druk_win.destroy(), font=("Arial", 12, "bold"), bg="#9E9E9E", fg="white", padx=20, pady=10).pack(fill="x", pady=5)
     
     def drukuj_paragon_z_danymi(self, przyjete_p, przyjete_po, wydane_p, wydane_po, kierowca):
         klient_name = self.selected_label.cget("text")
