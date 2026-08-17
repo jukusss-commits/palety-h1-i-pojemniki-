@@ -3,6 +3,8 @@ from tkinter import messagebox, ttk
 from config import WINDOW_WIDTH, WINDOW_HEIGHT
 from database import db
 from datetime import datetime
+import os
+import subprocess
 
 class LoginWindow(tk.Tk):
     def __init__(self):
@@ -323,7 +325,8 @@ class MainWindow(tk.Tk):
         tree.pack(fill="both", expand=True, padx=10, pady=10)
         
         def drukuj():
-            plik = f"historia_{klient_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            plik = f"archiwum/historia_{klient_name.replace(' ', '_').replace('(', '').replace(')', '')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            os.makedirs("archiwum", exist_ok=True)
             with open(plik, 'w', encoding='utf-8') as f:
                 f.write("="*150 + "\n")
                 f.write(f"HISTORIA TRANSAKCJI: {klient_name}\n")
@@ -423,45 +426,59 @@ class MainWindow(tk.Tk):
         klient_name = self.selected_label.cget("text")
         pracownik = self.user['nazwa']
         
-        plik = f"paragon_{klient_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        os.makedirs("archiwum", exist_ok=True)
         
-        with open(plik, 'w', encoding='utf-8') as f:
-            f.write("╔" + "═"*78 + "╗\n")
-            f.write("║" + " "*20 + "H1 PALETY - PARAGON ROZLICZENIA" + " "*27 + "║\n")
-            f.write("╚" + "═"*78 + "╝\n\n")
+        plik = f"archiwum/paragon_{klient_name.replace(' ', '_').replace('(', '').replace(')', '')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        
+        zawartosc = ""
+        zawartosc += "╔" + "═"*78 + "╗\n"
+        zawartosc += "║" + " "*20 + "H1 PALETY - PARAGON ROZLICZENIA" + " "*27 + "║\n"
+        zawartosc += "╚" + "═"*78 + "╝\n\n"
+        
+        zawartosc += f"Data:              {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        zawartosc += f"Klient:            {klient_name}\n"
+        zawartosc += f"Kierowca:          {kierowca or 'Brak'}\n"
+        zawartosc += f"Pracownik:         {pracownik}\n\n"
+        
+        zawartosc += "─"*80 + "\n"
+        zawartosc += "PRZYJĘTE\n"
+        zawartosc += "─"*80 + "\n"
+        zawartosc += f"Palety:            {przyjete_p:>10} szt.\n"
+        zawartosc += f"Pojemniki:         {przyjete_po:>10} szt.\n"
+        zawartosc += "─"*80 + "\n\n"
+        
+        zawartosc += "WYDANE\n"
+        zawartosc += "─"*80 + "\n"
+        zawartosc += f"Palety:            {wydane_p:>10} szt.\n"
+        zawartosc += f"Pojemniki:         {wydane_po:>10} szt.\n"
+        zawartosc += "─"*80 + "\n\n"
+        
+        netto_palety = przyjete_p - wydane_p
+        netto_pojemniki = przyjete_po - wydane_po
+        
+        zawartosc += "SALDO (NETTO)\n"
+        zawartosc += "─"*80 + "\n"
+        zawartosc += f"Palety:            {netto_palety:>10} szt.\n"
+        zawartosc += f"Pojemniki:         {netto_pojemniki:>10} szt.\n"
+        zawartosc += "═"*80 + "\n\n"
+        
+        zawartosc += f"Podpis kierowcy: ________________    Podpis pracownika: ________________\n\n"
+        zawartosc += "╔" + "═"*78 + "╗\n"
+        zawartosc += "║" + " "*78 + "║\n"
+        zawartosc += "║" + " "*78 + "║\n"
+        zawartosc += "╚" + "═"*78 + "╝\n"
+        
+        try:
+            with open(plik, 'w', encoding='utf-8') as f:
+                f.write(zawartosc)
             
-            f.write(f"Data:              {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"Klient:            {klient_name}\n")
-            f.write(f"Kierowca:          {kierowca or 'Brak'}\n")
-            f.write(f"Pracownik:         {pracownik}\n\n")
+            try:
+                subprocess.Popen(f'notepad /p "{plik}"', shell=True)
+            except:
+                pass
             
-            f.write("─"*80 + "\n")
-            f.write("PRZYJĘTE\n")
-            f.write("─"*80 + "\n")
-            f.write(f"Palety:            {przyjete_p:>10} szt.\n")
-            f.write(f"Pojemniki:         {przyjete_po:>10} szt.\n")
-            f.write("─"*80 + "\n\n")
-            
-            f.write("WYDANE\n")
-            f.write("─"*80 + "\n")
-            f.write(f"Palety:            {wydane_p:>10} szt.\n")
-            f.write(f"Pojemniki:         {wydane_po:>10} szt.\n")
-            f.write("─"*80 + "\n\n")
-            
-            netto_palety = przyjete_p - wydane_p
-            netto_pojemniki = przyjete_po - wydane_po
-            
-            f.write("SALDO (NETTO)\n")
-            f.write("─"*80 + "\n")
-            f.write(f"Palety:            {netto_palety:>10} szt.\n")
-            f.write(f"Pojemniki:         {netto_pojemniki:>10} szt.\n")
-            f.write("═"*80 + "\n\n")
-            
-            f.write(f"Podpis kierowcy: ________________    Podpis pracownika: ________________\n\n")
-            f.write("╔" + "═"*78 + "╗\n")
-            f.write("║" + " "*78 + "║\n")
-            f.write("║" + " "*78 + "║\n")
-            f.write("╚" + "═"*78 + "╝\n")
+        except Exception as e:
+            messagebox.showerror("Błąd", f"Nie udało się zapisać: {str(e)}")
     
     def clear_inputs(self):
         self.przyjete_p.delete(0, "end")
