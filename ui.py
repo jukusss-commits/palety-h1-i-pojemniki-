@@ -342,7 +342,7 @@ class MainWindow(tk.Tk):
         
         tk.Button(historia_win, text="🖨️ Drukuj", command=drukuj, font=("Arial", 11, "bold"), bg="#FF9800", fg="white", padx=20, pady=8).pack(pady=10)
     
-    def rozlicz(self):
+        def rozlicz(self):
         if not self.selected_klient_id:
             messagebox.showerror("Błąd", "Wybierz klienta!")
             return
@@ -383,6 +383,36 @@ class MainWindow(tk.Tk):
         tk.Label(info_frame, text=f"\nNetto palety: {netto_p}", font=("Arial", 11, "bold"), fg="#1976D2", bg="#F5F5F5").pack(anchor="w", pady=5)
         tk.Label(info_frame, text=f"Netto pojemniki: {netto_po}", font=("Arial", 11, "bold"), fg="#1976D2", bg="#F5F5F5").pack(anchor="w", pady=5)
         
+        # DEFINIUJ FUNKCJE PIERWSZ!
+        def rozlicz_i_drukuj():
+            if przyjete_p > 0 or przyjete_po > 0:
+                db.update_saldo(self.selected_klient_id, przyjete_p, przyjete_po, kierowca, "PRZYJECIE", self.user['id'])
+            
+            if wydane_p > 0 or wydane_po > 0:
+                db.update_saldo(self.selected_klient_id, -wydane_p, -wydane_po, kierowca, "WYDANIE", self.user['id'])
+            
+            self.drukuj_paragon_z_danymi(przyjete_p, przyjete_po, wydane_p, wydane_po, kierowca)
+            
+            messagebox.showinfo("✅ Sukces", "Rozliczenie i druk wykonane!")
+            self.clear_inputs()
+            self.update_saldo()
+            self.update_magazyn_display()
+            druk_win.destroy()
+        
+        def rozlicz_bez_druku():
+            if przyjete_p > 0 or przyjete_po > 0:
+                db.update_saldo(self.selected_klient_id, przyjete_p, przyjete_po, kierowca, "PRZYJECIE", self.user['id'])
+            
+            if wydane_p > 0 or wydane_po > 0:
+                db.update_saldo(self.selected_klient_id, -wydane_p, -wydane_po, kierowca, "WYDANIE", self.user['id'])
+            
+            messagebox.showinfo("✅ Sukces", "Rozliczenie zapisane (bez druku)!")
+            self.clear_inputs()
+            self.update_saldo()
+            self.update_magazyn_display()
+            druk_win.destroy()
+        
+        # POTEM PRZYCISKI
         btn_frame = tk.Frame(druk_win, bg="white")
         btn_frame.pack(fill="both", padx=20, pady=20)
         
