@@ -364,25 +364,26 @@ class MainWindow(tk.Tk):
         
         druk_win = tk.Toplevel(self)
         druk_win.title("Druk paragonu?")
-        druk_win.geometry("400x350")
+        druk_win.geometry("450x400")
         druk_win.resizable(False, False)
+        druk_win.grab_set()
         
-        tk.Label(druk_win, text="Czy chcesz wydrukować paragon?", font=("Arial", 12, "bold")).pack(pady=20)
+        tk.Label(druk_win, text="Czy chcesz wydrukować paragon?", font=("Arial", 12, "bold"), bg="white").pack(pady=20)
         
         info_frame = tk.Frame(druk_win, bg="#F5F5F5")
         info_frame.pack(fill="both", expand=True, padx=20, pady=10)
         
-        tk.Label(info_frame, text=f"Przyjęte palety: {przyjete_p}", font=("Arial", 11)).pack(anchor="w", pady=5)
-        tk.Label(info_frame, text=f"Przyjęte pojemniki: {przyjete_po}", font=("Arial", 11)).pack(anchor="w", pady=5)
-        tk.Label(info_frame, text=f"Wydane palety: {wydane_p}", font=("Arial", 11)).pack(anchor="w", pady=5)
-        tk.Label(info_frame, text=f"Wydane pojemniki: {wydane_po}", font=("Arial", 11)).pack(anchor="w", pady=5)
+        tk.Label(info_frame, text=f"Przyjęte palety: {przyjete_p}", font=("Arial", 11), bg="#F5F5F5").pack(anchor="w", pady=5)
+        tk.Label(info_frame, text=f"Przyjęte pojemniki: {przyjete_po}", font=("Arial", 11), bg="#F5F5F5").pack(anchor="w", pady=5)
+        tk.Label(info_frame, text=f"Wydane palety: {wydane_p}", font=("Arial", 11), bg="#F5F5F5").pack(anchor="w", pady=5)
+        tk.Label(info_frame, text=f"Wydane pojemniki: {wydane_po}", font=("Arial", 11), bg="#F5F5F5").pack(anchor="w", pady=5)
         
         netto_p = przyjete_p - wydane_p
         netto_po = przyjete_po - wydane_po
-        tk.Label(info_frame, text=f"\nNetto palety: {netto_p}", font=("Arial", 11, "bold"), fg="#1976D2").pack(anchor="w", pady=5)
-        tk.Label(info_frame, text=f"Netto pojemniki: {netto_po}", font=("Arial", 11, "bold"), fg="#1976D2").pack(anchor="w", pady=5)
+        tk.Label(info_frame, text=f"\nNetto palety: {netto_p}", font=("Arial", 11, "bold"), fg="#1976D2", bg="#F5F5F5").pack(anchor="w", pady=5)
+        tk.Label(info_frame, text=f"Netto pojemniki: {netto_po}", font=("Arial", 11, "bold"), fg="#1976D2", bg="#F5F5F5").pack(anchor="w", pady=5)
         
-        btn_frame = tk.Frame(druk_win)
+        btn_frame = tk.Frame(druk_win, bg="white")
         btn_frame.pack(fill="x", padx=20, pady=20)
         
         def rozlicz_i_drukuj():
