@@ -176,6 +176,9 @@ class MainWindow(tk.Tk):
         btn_historia = tk.Button(btn_frame, text="📖 Historia transakcji", command=self.show_historia_window, font=("Arial", 11), bg="#2196F3", fg="white", padx=20, pady=8)
         btn_historia.pack(fill="x", pady=(5, 0))
         
+        btn_druk_paragon = tk.Button(btn_frame, text="🧾 Druk paragonu", command=self.print_paragon, font=("Arial", 11), bg="#9C27B0", fg="white", padx=20, pady=8)
+        btn_druk_paragon.pack(fill="x", pady=(5, 0))
+        
         logout_btn = tk.Button(self, text="Wyloguj", command=self.logout, bg="#FF6B6B", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10)
         logout_btn.pack(pady=10, padx=20, fill="x")
         
@@ -283,14 +286,20 @@ class MainWindow(tk.Tk):
         klient_name = self.selected_label.cget("text")
         historia_win = tk.Toplevel(self)
         historia_win.title(f"Historia - {klient_name}")
-        historia_win.geometry("1200x650")
+        historia_win.geometry("1400x700")
         
-        tk.Label(historia_win, text=f"Historia: {klient_name}", font=("Arial", 14, "bold")).pack(pady=10)
+        title_frame = tk.Frame(historia_win, bg="#FF6B6B")
+        title_frame.pack(fill="x")
+        tk.Label(title_frame, text=f"Historia: {klient_name}", font=("Arial", 14, "bold"), bg="#FF6B6B", fg="white").pack(pady=10)
         
-        columns = ("Data", "Typ", "Sal.Przed.P", "Sal.Przed.Po", "Przyjęto.P", "Przyjęto.Po", "Saldo Po.P", "Saldo Po.Po", "Kierowca")
+        info_frame = tk.Frame(historia_win, bg="white")
+        info_frame.pack(fill="x", padx=10, pady=10)
+        tk.Label(info_frame, text="E2 = Poprzednia transakcja | H1 = Bieżąca transakcja", font=("Arial", 10, "italic"), bg="white").pack()
+        
+        columns = ("Data", "Typ", "E2-Saldo.P", "E2-Saldo.Po", "E2-Przyjęto.P", "E2-Wydano.P", "H1-Saldo.P", "H1-Saldo.Po", "Kierowca")
         tree = ttk.Treeview(historia_win, columns=columns, height=20, show="headings")
         
-        widths = [180, 80, 80, 80, 80, 80, 80, 80, 100]
+        widths = [150, 80, 90, 90, 100, 100, 90, 90, 100]
         for col, width in zip(columns, widths):
             tree.heading(col, text=col)
             tree.column(col, width=width)
@@ -298,13 +307,17 @@ class MainWindow(tk.Tk):
         historia = db.get_historia(self.selected_klient_id, 100)
         for trans in historia:
             data = trans['data'].split('.')[0] if '.' in trans['data'] else trans['data']
+            
+            e2_przyjeto = trans['palety'] if trans['typ'] == 'PRZYJECIE' else "-"
+            e2_wydano = trans['palety'] if trans['typ'] == 'WYDANIE' else "-"
+            
             tree.insert("", "end", values=(
                 data, 
                 trans['typ'], 
                 trans['saldo_przed_palety'],
                 trans['saldo_przed_pojemniki'],
-                trans['palety'],
-                trans['pojemniki'],
+                e2_przyjeto,
+                e2_wydano,
                 trans['saldo_po_palety'],
                 trans['saldo_po_pojemniki'],
                 trans['kierowca'] or "-"
@@ -315,19 +328,86 @@ class MainWindow(tk.Tk):
         def drukuj():
             plik = f"historia_{klient_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
             with open(plik, 'w', encoding='utf-8') as f:
-                f.write("="*140 + "\n")
+                f.write("="*150 + "\n")
                 f.write(f"HISTORIA TRANSAKCJI: {klient_name}\n")
                 f.write(f"Data wydruku: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write("="*140 + "\n\n")
-                f.write(f"{'Data':<18} {'Typ':<10} {'SaloPrzed.P':<12} {'SaloPrzed.Po':<14} {'Przyjęto.P':<12} {'Przyjęto.Po':<14} {'SaloPo.P':<12} {'SaloPo.Po':<12} {'Kierowca':<20}\n")
-                f.write("-"*140 + "\n")
+                f.write("="*150 + "\n\n")
+                f.write("LEGENDA: E2 = Stan przed | H1 = Stan po\n\n")
+                f.write(f"{'Data':<18} {'Typ':<10} {'E2-Sal.P':<10} {'E2-Sal.Po':<11} {'E2-Przj.P':<10} {'E2-Wyd.P':<10} {'H1-Sal.P':<10} {'H1-Sal.Po':<11} {'Kierowca':<15}\n")
+                f.write("-"*150 + "\n")
                 for trans in historia:
                     data = trans['data'].split('.')[0] if '.' in trans['data'] else trans['data']
-                    f.write(f"{data:<18} {trans['typ']:<10} {str(trans['saldo_przed_palety']):<12} {str(trans['saldo_przed_pojemniki']):<14} {str(trans['palety']):<12} {str(trans['pojemniki']):<14} {str(trans['saldo_po_palety']):<12} {str(trans['saldo_po_pojemniki']):<12} {(trans['kierowca'] or '-'):<20}\n")
-                f.write("="*140 + "\n")
+                    e2_przyjeto = str(trans['palety']) if trans['typ'] == 'PRZYJECIE' else "-"
+                    e2_wydano = str(trans['palety']) if trans['typ'] == 'WYDANIE' else "-"
+                    f.write(f"{data:<18} {trans['typ']:<10} {str(trans['saldo_przed_palety']):<10} {str(trans['saldo_przed_pojemniki']):<11} {e2_przyjeto:<10} {e2_wydano:<10} {str(trans['saldo_po_palety']):<10} {str(trans['saldo_po_pojemniki']):<11} {(trans['kierowca'] or '-'):<15}\n")
+                f.write("="*150 + "\n")
             messagebox.showinfo("OK", f"Historia wydrukowana:\n{plik}")
         
         tk.Button(historia_win, text="🖨️ Drukuj", command=drukuj, font=("Arial", 11, "bold"), bg="#FF9800", fg="white", padx=20, pady=8).pack(pady=10)
+    
+    def print_paragon(self):
+        if not self.selected_klient_id:
+            messagebox.showerror("Błąd", "Wybierz klienta!")
+            return
+        
+        try:
+            przyjete_p = int(self.przyjete_p.get() or 0)
+            przyjete_po = int(self.przyjete_po.get() or 0)
+            wydane_p = int(self.wydane_p.get() or 0)
+            wydane_po = int(self.wydane_po.get() or 0)
+        except:
+            messagebox.showerror("Błąd", "Wpisz prawidłowe liczby!")
+            return
+        
+        if przyjete_p == 0 and przyjete_po == 0 and wydane_p == 0 and wydane_po == 0:
+            messagebox.showerror("Błąd", "Brak danych do wydruku!")
+            return
+        
+        klient_name = self.selected_label.cget("text")
+        kierowca = self.kierowca_entry.get().strip() or "Brak"
+        pracownik = self.user['nazwa']
+        
+        plik = f"paragon_{klient_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        
+        with open(plik, 'w', encoding='utf-8') as f:
+            f.write("╔" + "═"*78 + "╗\n")
+            f.write("║" + " "*20 + "H1 PALETY - PARAGON ROZLICZENIA" + " "*27 + "║\n")
+            f.write("╚" + "═"*78 + "╝\n\n")
+            
+            f.write(f"Data:              {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Klient:            {klient_name}\n")
+            f.write(f"Kierowca:          {kierowca}\n")
+            f.write(f"Pracownik:         {pracownik}\n\n")
+            
+            f.write("─"*80 + "\n")
+            f.write("PRZYJĘTE\n")
+            f.write("─"*80 + "\n")
+            f.write(f"Palety:            {przyjete_p:>10} szt.\n")
+            f.write(f"Pojemniki:         {przyjete_po:>10} szt.\n")
+            f.write("─"*80 + "\n\n")
+            
+            f.write("WYDANE\n")
+            f.write("─"*80 + "\n")
+            f.write(f"Palety:            {wydane_p:>10} szt.\n")
+            f.write(f"Pojemniki:         {wydane_po:>10} szt.\n")
+            f.write("─"*80 + "\n\n")
+            
+            netto_palety = przyjete_p - wydane_p
+            netto_pojemniki = przyjete_po - wydane_po
+            
+            f.write("SALDO (NETTO)\n")
+            f.write("─"*80 + "\n")
+            f.write(f"Palety:            {netto_palety:>10} szt.\n")
+            f.write(f"Pojemniki:         {netto_pojemniki:>10} szt.\n")
+            f.write("═"*80 + "\n\n")
+            
+            f.write(f"Podpis kierowcy: ________________    Podpis pracownika: ________________\n\n")
+            f.write("╔" + "═"*78 + "╗\n")
+            f.write("║" + " "*78 + "║\n")
+            f.write("║" + " "*78 + "║\n")
+            f.write("╚" + "═"*78 + "╝\n")
+        
+        messagebox.showinfo("✅ Sukces", f"Paragon wydrukowany:\n{plik}\n\nOtwórz i wydrukuj!")
     
     def rozlicz(self):
         if not self.selected_klient_id:
