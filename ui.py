@@ -342,7 +342,7 @@ class MainWindow(tk.Tk):
         
         tk.Button(historia_win, text="🖨️ Drukuj", command=drukuj, font=("Arial", 11, "bold"), bg="#FF9800", fg="white", padx=20, pady=8).pack(pady=10)
     
-    def rozlicz(self):
+        def rozlicz(self):
         if not self.selected_klient_id:
             messagebox.showerror("Błąd", "Wybierz klienta!")
             return
@@ -365,7 +365,7 @@ class MainWindow(tk.Tk):
         # Pytaj o wydruk PRZED rozliczeniem
         druk_win = tk.Toplevel(self)
         druk_win.title("Druk paragonu?")
-        druk_win.geometry("400x300")
+        druk_win.geometry("400x350")
         druk_win.resizable(False, False)
         
         tk.Label(druk_win, text="Czy chcesz wydrukować paragon?", font=("Arial", 12, "bold")).pack(pady=20)
@@ -400,6 +400,24 @@ class MainWindow(tk.Tk):
             self.update_saldo()
             self.update_magazyn_display()
             druk_win.destroy()
+        
+        def rozlicz_bez_druku():
+            if przyjete_p > 0 or przyjete_po > 0:
+                db.update_saldo(self.selected_klient_id, przyjete_p, przyjete_po, kierowca, "PRZYJECIE", self.user['id'])
+            
+            if wydane_p > 0 or wydane_po > 0:
+                db.update_saldo(self.selected_klient_id, -wydane_p, -wydane_po, kierowca, "WYDANIE", self.user['id'])
+            
+            messagebox.showinfo("✅ Sukces", "Rozliczenie zapisane (bez druku)!")
+            self.clear_inputs()
+            self.update_saldo()
+            self.update_magazyn_display()
+            druk_win.destroy()
+        
+        tk.Button(btn_frame, text="✅ TAK - Drukuj", command=rozlicz_i_drukuj, font=("Arial", 12, "bold"), bg="#4CAF50", fg="white", padx=20, pady=10).pack(fill="x", pady=5)
+        tk.Button(btn_frame, text="❌ NIE - Bez druku", command=rozlicz_bez_druku, font=("Arial", 12, "bold"), bg="#FF9800", fg="white", padx=20, pady=10).pack(fill="x", pady=5)
+        tk.Button(btn_frame, text="✏️ POPRAW", command=lambda: druk_win.destroy(), font=("Arial", 12, "bold"), bg="#2196F3", fg="white", padx=20, pady=10).pack(fill="x", pady=5)
+        tk.Button(btn_frame, text="❌ ZAMKNIJ", command=lambda: druk_win.destroy(), font=("Arial", 12, "bold"), bg="#9E9E9E", fg="white", padx=20, pady=10).pack(fill="x", pady=5)
         
         def rozlicz_bez_druku():
             if przyjete_p > 0 or przyjete_po > 0:
