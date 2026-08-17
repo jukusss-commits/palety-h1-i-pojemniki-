@@ -202,12 +202,11 @@ class Database:
         conn.commit()
         conn.close()
         
+        # PRZYJECIE = +palety, WYDANIE = -palety (ujemne wartości!)
         if typ == "PRZYJECIE":
             self.update_magazyn(palety_zmiana)
         elif typ == "WYDANIE":
-            self.update_magazyn(-palety_zmiana)
-        
-        return {"palety": new_palety, "pojemniki": new_pojemniki}
+            self.update_magazyn(-abs(palety_zmiana))
 
     def get_historia(self, klient_id, limit=10):
         conn = self.get_connection()
