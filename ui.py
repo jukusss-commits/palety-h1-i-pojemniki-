@@ -364,7 +364,7 @@ class MainWindow(tk.Tk):
         
         druk_win = tk.Toplevel(self)
         druk_win.title("Druk paragonu?")
-        druk_win.geometry("450x400")
+        druk_win.geometry("450x500")
         druk_win.resizable(False, False)
         druk_win.grab_set()
         
@@ -384,7 +384,12 @@ class MainWindow(tk.Tk):
         tk.Label(info_frame, text=f"Netto pojemniki: {netto_po}", font=("Arial", 11, "bold"), fg="#1976D2", bg="#F5F5F5").pack(anchor="w", pady=5)
         
         btn_frame = tk.Frame(druk_win, bg="white")
-        btn_frame.pack(fill="x", padx=20, pady=20)
+        btn_frame.pack(fill="both", padx=20, pady=20)
+        
+        tk.Button(btn_frame, text="✅ TAK - Drukuj", command=rozlicz_i_drukuj, font=("Arial", 11, "bold"), bg="#4CAF50", fg="white", padx=20, pady=8).pack(fill="x", pady=3)
+        tk.Button(btn_frame, text="❌ NIE - Bez druku", command=rozlicz_bez_druku, font=("Arial", 11, "bold"), bg="#FF9800", fg="white", padx=20, pady=8).pack(fill="x", pady=3)
+        tk.Button(btn_frame, text="✏️ POPRAW", command=lambda: druk_win.destroy(), font=("Arial", 11, "bold"), bg="#2196F3", fg="white", padx=20, pady=8).pack(fill="x", pady=3)
+        tk.Button(btn_frame, text="❌ ZAMKNIJ", command=lambda: druk_win.destroy(), font=("Arial", 11, "bold"), bg="#9E9E9E", fg="white", padx=20, pady=8).pack(fill="x", pady=3)
         
         def rozlicz_i_drukuj():
             if przyjete_p > 0 or przyjete_po > 0:
