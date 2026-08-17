@@ -408,6 +408,8 @@ class MainWindow(tk.Tk):
             if wydane_p > 0 or wydane_po > 0:
                 db.update_saldo(self.selected_klient_id, -wydane_p, -wydane_po, kierowca, "WYDANIE", self.user['id'])
             
+            self.zapisz_paragon_bez_druku(przyjete_p, przyjete_po, wydane_p, wydane_po, kierowca)
+            
             messagebox.showinfo("✅ Sukces", "Rozliczenie zapisane (bez druku)!")
             self.clear_inputs()
             self.update_saldo()
@@ -430,43 +432,30 @@ class MainWindow(tk.Tk):
         
         plik = f"archiwum/paragon_{klient_name.replace(' ', '_').replace('(', '').replace(')', '')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         
-        zawartosc = ""
-        zawartosc += "╔" + "═"*78 + "╗\n"
-        zawartosc += "║" + " "*20 + "H1 PALETY - PARAGON ROZLICZENIA" + " "*27 + "║\n"
-        zawartosc += "╚" + "═"*78 + "╝\n\n"
-        
-        zawartosc += f"Data:              {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-        zawartosc += f"Klient:            {klient_name}\n"
-        zawartosc += f"Kierowca:          {kierowca or 'Brak'}\n"
-        zawartosc += f"Pracownik:         {pracownik}\n\n"
-        
-        zawartosc += "─"*80 + "\n"
-        zawartosc += "PRZYJĘTE\n"
-        zawartosc += "─"*80 + "\n"
-        zawartosc += f"Palety:            {przyjete_p:>10} szt.\n"
-        zawartosc += f"Pojemniki:         {przyjete_po:>10} szt.\n"
-        zawartosc += "─"*80 + "\n\n"
-        
-        zawartosc += "WYDANE\n"
-        zawartosc += "─"*80 + "\n"
-        zawartosc += f"Palety:            {wydane_p:>10} szt.\n"
-        zawartosc += f"Pojemniki:         {wydane_po:>10} szt.\n"
-        zawartosc += "─"*80 + "\n\n"
-        
         netto_palety = przyjete_p - wydane_p
         netto_pojemniki = przyjete_po - wydane_po
         
-        zawartosc += "SALDO (NETTO)\n"
-        zawartosc += "─"*80 + "\n"
-        zawartosc += f"Palety:            {netto_palety:>10} szt.\n"
-        zawartosc += f"Pojemniki:         {netto_pojemniki:>10} szt.\n"
-        zawartosc += "═"*80 + "\n\n"
+        paragon = ""
+        paragon += "╔" + "═"*38 + "╗\n"
+        paragon += "║" + "H1 PALETY - PARAGON".center(38) + "║\n"
+        paragon += "╠" + "═"*38 + "╣\n"
+        paragon += f"║ Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}".ljust(39) + "║\n"
+        paragon += f"║ Klient: {klient_name[:30]}".ljust(39) + "║\n"
+        paragon += f"║ Kierowca: {kierowca or 'Brak'}".ljust(39) + "║\n"
+        paragon += f"║ Pracownik: {pracownik}".ljust(39) + "║\n"
+        paragon += "╠" + "═"*38 + "╣\n"
+        paragon += "║ PRZYJĘTE           WYDANE             ║\n"
+        paragon += f"║ Palety: {przyjete_p:>3}      Palety: {wydane_p:>3}                ║\n"
+        paragon += f"║ Pojemniki: {przyjete_po:>3}    Pojemniki: {wydane_po:>3}            ║\n"
+        paragon += "╠" + "═"*38 + "╣\n"
+        paragon += f"║ NETTO: Palety {netto_palety:>3} | Pojemniki {netto_pojemniki:>3}       ║\n"
+        paragon += "╠" + "═"*38 + "╣\n"
+        paragon += "║ Podpis: ________________             ║\n"
+        paragon += "╚" + "═"*38 + "╝\n"
         
-        zawartosc += f"Podpis kierowcy: ________________    Podpis pracownika: ________________\n\n"
-        zawartosc += "╔" + "═"*78 + "╗\n"
-        zawartosc += "║" + " "*78 + "║\n"
-        zawartosc += "║" + " "*78 + "║\n"
-        zawartosc += "╚" + "═"*78 + "╝\n"
+        zawartosc = ""
+        zawartosc += paragon + "\n"
+        zawartosc += paragon
         
         try:
             with open(plik, 'w', encoding='utf-8') as f:
@@ -477,6 +466,45 @@ class MainWindow(tk.Tk):
             except:
                 pass
             
+        except Exception as e:
+            messagebox.showerror("Błąd", f"Nie udało się zapisać: {str(e)}")
+    
+    def zapisz_paragon_bez_druku(self, przyjete_p, przyjete_po, wydane_p, wydane_po, kierowca):
+        klient_name = self.selected_label.cget("text")
+        pracownik = self.user['nazwa']
+        
+        os.makedirs("archiwum", exist_ok=True)
+        
+        plik = f"archiwum/paragon_{klient_name.replace(' ', '_').replace('(', '').replace(')', '')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        
+        netto_palety = przyjete_p - wydane_p
+        netto_pojemniki = przyjete_po - wydane_po
+        
+        paragon = ""
+        paragon += "╔" + "═"*38 + "╗\n"
+        paragon += "║" + "H1 PALETY - PARAGON".center(38) + "║\n"
+        paragon += "╠" + "═"*38 + "╣\n"
+        paragon += f"║ Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}".ljust(39) + "║\n"
+        paragon += f"║ Klient: {klient_name[:30]}".ljust(39) + "║\n"
+        paragon += f"║ Kierowca: {kierowca or 'Brak'}".ljust(39) + "║\n"
+        paragon += f"║ Pracownik: {pracownik}".ljust(39) + "║\n"
+        paragon += "╠" + "═"*38 + "╣\n"
+        paragon += "║ PRZYJĘTE           WYDANE             ║\n"
+        paragon += f"║ Palety: {przyjete_p:>3}      Palety: {wydane_p:>3}                ║\n"
+        paragon += f"║ Pojemniki: {przyjete_po:>3}    Pojemniki: {wydane_po:>3}            ║\n"
+        paragon += "╠" + "═"*38 + "╣\n"
+        paragon += f"║ NETTO: Palety {netto_palety:>3} | Pojemniki {netto_pojemniki:>3}       ║\n"
+        paragon += "╠" + "═"*38 + "╣\n"
+        paragon += "║ Podpis: ________________             ║\n"
+        paragon += "╚" + "═"*38 + "╝\n"
+        
+        zawartosc = ""
+        zawartosc += paragon + "\n"
+        zawartosc += paragon
+        
+        try:
+            with open(plik, 'w', encoding='utf-8') as f:
+                f.write(zawartosc)
         except Exception as e:
             messagebox.showerror("Błąd", f"Nie udało się zapisać: {str(e)}")
     
