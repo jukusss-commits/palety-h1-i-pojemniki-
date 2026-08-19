@@ -103,6 +103,8 @@ class Database:
             notatka_kierownika TEXT,
             data_zatwierdzenia TIMESTAMP,
             zatwierdził_id INTEGER,
+            licznik_dni INTEGER DEFAULT 0,
+            ostatni_login TIMESTAMP,
             FOREIGN KEY(pracownik_id) REFERENCES pracownicy(id),
             FOREIGN KEY(zmiana_id) REFERENCES zmiana(id),
             FOREIGN KEY(zatwierdził_id) REFERENCES pracownicy(id)
@@ -368,8 +370,8 @@ class Database:
         if roznica != 0:
             cursor.execute(
                 """INSERT INTO rozbieznosci 
-                (pracownik_id, zmiana_id, stan_przejety, stan_faktyczny, roznica, status)
-                VALUES (?, ?, ?, ?, ?, 'czeka')""",
+                (pracownik_id, zmiana_id, stan_przejety, stan_faktyczny, roznica, status, licznik_dni, ostatni_login)
+                VALUES (?, ?, ?, ?, ?, 'czeka', 0, CURRENT_TIMESTAMP)""",
                 (zmiana['pracownik_id'], zmiana_id, stan_teoretyczny, stan_faktyczny, roznica)
             )
         
@@ -488,6 +490,53 @@ class Database:
         result = cursor.fetchone()
         conn.close()
         return result['count'] > 0
+
+    # ===== LOGIKA 3 DNI (12H OD LOGOWANIA) =====
+    def record_login_i_sprawdz_rozbieznosci(self, pracownik_id):
+        """
+        Zaloguj pracownika i sprawdź rozbieżności.
+        Logika: każde logowanie +12h licznika, po 3 logowaniach rozbieżność wygasa.
+        Kierownik może zatwierdził wcześniej (licznik stop).
+        Zwraca True jeśli rozbieżność wygasła.
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        # Pobierz otwarte rozbieżności pracownika
+        cursor.execute(
+            "SELECT * FROM rozbieznosci WHERE pracownik_id = ? AND status IN ('czeka', 'wyjasnione')",
+            (pracownik_id,)
+        )
+        rozbieznosci = [dict(r) for r in cursor.fetchall()]
+        
+        expired = False
+        
+        for rozb in rozbieznosci:
+            # Zwiększ licznik dni
+            nowy_licznik = (rozb['licznik_dni'] or 0) + 1
+            
+            # Jeśli licznik >= 3, rozbieżność wygasa
+            if nowy_licznik >= 3:
+                cursor.execute(
+                    """UPDATE rozbieznosci 
+                    SET status = 'wygasla', licznik_dni = ?
+                    WHERE id = ?""",
+                    (nowy_licznik, rozb['id'])
+                )
+                expired = True
+            else:
+                # Inaczej, aktualizuj licznik i ostatni login
+                cursor.execute(
+                    """UPDATE rozbieznosci 
+                    SET licznik_dni = ?, ostatni_login = CURRENT_TIMESTAMP
+                    WHERE id = ?""",
+                    (nowy_licznik, rozb['id'])
+                )
+        
+        conn.commit()
+        conn.close()
+        
+        return expired
 
     # ===== MAGAZYN OPERACJE =====
     def add_magazyn_operacja(self, magazynier_id, typ, ilosc, notatka=""):
