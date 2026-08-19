@@ -122,6 +122,22 @@ class Database:
         )
         """)
         
+        # TABELA LOGOWAŃ - do śledzenia 3 dni (12h)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS logowania (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pracownik_id INTEGER NOT NULL,
+            data_logowania TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(pracownik_id) REFERENCES pracownicy(id)
+        )
+        """)
+
+        # Dodaj kolumnę dni_count do rozbieznosci jeśli nie istnieje
+        try:
+            cursor.execute("ALTER TABLE rozbieznosci ADD COLUMN dni_count INTEGER DEFAULT 0")
+        except Exception:
+            pass
+
         cursor.execute("SELECT * FROM pracownicy WHERE pin = '0000'")
         if not cursor.fetchone():
             cursor.execute("INSERT INTO pracownicy (nazwa, pin, rola) VALUES ('Admin', '0000', 'admin')")
@@ -515,5 +531,68 @@ class Database:
         result = cursor.fetchall()
         conn.close()
         return [dict(r) for r in result]
+
+    # ===== LOGOWANIA I LOGIKA 3 DNI (12H) =====
+    def record_login_i_sprawdz_rozbieznosci(self, pracownik_id):
+        """Zapisz logowanie i sprawdź rozbieżności (logika 12h = 1 dzień, 3 dni = wygaśnięcie)"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Pobierz ostatnie logowanie
+        cursor.execute(
+            "SELECT data_logowania FROM logowania WHERE pracownik_id = ? ORDER BY data_logowania DESC LIMIT 1",
+            (pracownik_id,)
+        )
+        last = cursor.fetchone()
+
+        should_increment = False
+        if last:
+            try:
+                last_time = datetime.strptime(last['data_logowania'], '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                last_time = datetime.strptime(last['data_logowania'][:19], '%Y-%m-%d %H:%M:%S')
+            if (datetime.now() - last_time).total_seconds() >= 12 * 3600:
+                should_increment = True
+
+        # Zapisz to logowanie
+        cursor.execute("INSERT INTO logowania (pracownik_id) VALUES (?)", (pracownik_id,))
+
+        expired_count = 0
+        if should_increment:
+            # Zwiększ licznik dni dla otwartych rozbieżności
+            cursor.execute(
+                """UPDATE rozbieznosci SET dni_count = dni_count + 1
+                WHERE pracownik_id = ? AND status IN ('czeka', 'wyjasnione')""",
+                (pracownik_id,)
+            )
+            # Wygaś te które mają >= 3
+            cursor.execute(
+                """UPDATE rozbieznosci SET status = 'wygasla', data_zatwierdzenia = CURRENT_TIMESTAMP
+                WHERE pracownik_id = ? AND dni_count >= 3 AND status IN ('czeka', 'wyjasnione')""",
+                (pracownik_id,)
+            )
+            expired_count = cursor.rowcount
+
+        conn.commit()
+        conn.close()
+        return expired_count
+
+    def update_pracownik_rola_pin(self, pracownik_id, nowa_nazwa=None, nowy_pin=None, nowa_rola=None):
+        """Zmienić dane pracownika (przez kierownika/admina)"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            if nowy_pin:
+                cursor.execute("UPDATE pracownicy SET pin = ? WHERE id = ?", (nowy_pin, pracownik_id))
+            if nowa_nazwa:
+                cursor.execute("UPDATE pracownicy SET nazwa = ? WHERE id = ?", (nowa_nazwa, pracownik_id))
+            if nowa_rola:
+                cursor.execute("UPDATE pracownicy SET rola = ? WHERE id = ?", (nowa_rola, pracownik_id))
+            conn.commit()
+            return True
+        except Exception:
+            return False
+        finally:
+            conn.close()
 
 db = Database()
