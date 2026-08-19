@@ -45,14 +45,12 @@ class LoginWindow(tk.Tk):
             self.pin_entry.delete(0, "end")
             return
         
-        # Sprawdzić czy ma otwartą zmianę
         otwarta = db.get_aktywna_zmiana(pracownik['id'])
         if otwarta:
             messagebox.showerror("Błąd", "Masz otwartą zmianę! Najpierw ją zamknij.")
             self.pin_entry.delete(0, "end")
             return
         
-        # Sprawdzić czy ma otwarte rozbieżności do wyjaśnienia
         ma_rozbieznosc = db.czy_ma_otwarta_rozbieznosc(pracownik['id'])
         
         self.destroy()
@@ -83,13 +81,11 @@ class PoczatekZmianyWindow(tk.Tk):
         main_frame = tk.Frame(self, bg="white")
         main_frame.pack(fill="both", expand=True, padx=20, pady=20)
         
-        # OSTRZEŻENIE O ROZBIEŻNOŚCI
         if ma_rozbieznosc:
             warning_frame = tk.Frame(main_frame, bg="#FFF3E0", relief="solid", borderwidth=2)
             warning_frame.pack(fill="x", pady=10)
             tk.Label(warning_frame, text="⚠️ UWAGA! Masz otwarte rozbieżności do wyjaśnienia!", font=("Arial", 12, "bold"), bg="#FFF3E0", fg="#E65100").pack(pady=10)
         
-        # POBRAĆ OSTATNIĄ ZMIANĘ
         last_zmiana = db.get_last_zmiana(user['id'])
         stan_poprzednika = last_zmiana['stan_faktyczny_koniec'] if last_zmiana else 0
         
@@ -101,7 +97,6 @@ class PoczatekZmianyWindow(tk.Tk):
         
         tk.Label(main_frame, text="Czy przejmujesz ten stan?", font=("Arial", 13, "bold"), bg="white").pack(pady=10)
         
-        # PRZYCISKI
         btn_frame = tk.Frame(main_frame, bg="white")
         btn_frame.pack(fill="x", pady=20)
         
@@ -129,7 +124,6 @@ class PoczatekZmianyWindow(tk.Tk):
                     zmiana_id = db.start_zmiana(user['id'], stan_faktyczny)
                     rozbieznosc = stan_faktyczny - stan_poprzednika
                     
-                    # Utwórz rozbieżność
                     conn = db.get_connection()
                     cursor = conn.cursor()
                     cursor.execute(
@@ -474,7 +468,6 @@ class MainWindow(tk.Tk):
         
         tree.pack(fill="both", expand=True)
         
-        # PANEL DODAWANIA NOTATKI
         action_frame = tk.Frame(rozb_win, bg="white")
         action_frame.pack(fill="x", padx=10, pady=10)
         
@@ -591,25 +584,30 @@ class MainWindow(tk.Tk):
         netto_palety = przyjete_p - wydane_p
         netto_pojemniki = przyjete_po - wydane_po
         
-        paragon = ""
-        paragon += "╔" + "═"*38 + "╗\n"
-        paragon += "║" + "H1 PALETY - PARAGON".center(38) + "║\n"
-        paragon += "╠" + "═"*38 + "╣\n"
-        paragon += f"║ Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}".ljust(39) + "║\n"
-        paragon += f"║ Klient: {klient_name[:30]}".ljust(39) + "║\n"
-        paragon += f"║ Kierowca: {kierowca or 'Brak'}".ljust(39) + "║\n"
-        paragon += f"║ Pracownik: {pracownik}".ljust(39) + "║\n"
-        paragon += "╠" + "═"*38 + "╣\n"
-        paragon += "║ PRZYJĘTE           WYDANE             ║\n"
-        paragon += f"║ Palety: {przyjete_p:>3}      Palety: {wydane_p:>3}                ║\n"
-        paragon += f"║ Pojemniki: {przyjete_po:>3}    Pojemniki: {wydane_po:>3}            ║\n"
-        paragon += "╠" + "═"*38 + "╣\n"
-        paragon += f"║ NETTO: Palety {netto_palety:>3} | Pojemniki {netto_pojemniki:>3}       ║\n"
-        paragon += "╠" + "═"*38 + "╣\n"
-        paragon += "║ Podpis: ________________             ║\n"
-        paragon += "╚" + "═"*38 + "╝\n"
+        paragon = f"""
+H1 PALETY - PARAGON
+Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+Klient: {klient_name}
+Kierowca: {kierowca or 'Brak'}
+Pracownik: {pracownik}
+
+PRZYJĘTE
+Palety: {przyjete_p}
+Pojemniki: {przyjete_po}
+
+WYDANE
+Palety: {wydane_p}
+Pojemniki: {wydane_po}
+
+NETTO
+Palety: {netto_palety:+d}
+Pojemniki: {netto_pojemniki:+d}
+
+Podpis: ________________
+
+"""
         
-        zawartosc = paragon + "\n" + paragon
+        zawartosc = paragon + "\n\n" + paragon
         
         try:
             with open(plik, 'w', encoding='utf-8') as f:
@@ -632,25 +630,30 @@ class MainWindow(tk.Tk):
         netto_palety = przyjete_p - wydane_p
         netto_pojemniki = przyjete_po - wydane_po
         
-        paragon = ""
-        paragon += "╔" + "═"*38 + "╗\n"
-        paragon += "║" + "H1 PALETY - PARAGON".center(38) + "║\n"
-        paragon += "╠" + "═"*38 + "╣\n"
-        paragon += f"║ Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}".ljust(39) + "║\n"
-        paragon += f"║ Klient: {klient_name[:30]}".ljust(39) + "║\n"
-        paragon += f"║ Kierowca: {kierowca or 'Brak'}".ljust(39) + "║\n"
-        paragon += f"║ Pracownik: {pracownik}".ljust(39) + "║\n"
-        paragon += "╠" + "═"*38 + "╣\n"
-        paragon += "║ PRZYJĘTE           WYDANE             ║\n"
-        paragon += f"║ Palety: {przyjete_p:>3}      Palety: {wydane_p:>3}                ║\n"
-        paragon += f"║ Pojemniki: {przyjete_po:>3}    Pojemniki: {wydane_po:>3}            ║\n"
-        paragon += "╠" + "═"*38 + "╣\n"
-        paragon += f"║ NETTO: Palety {netto_palety:>3} | Pojemniki {netto_pojemniki:>3}       ║\n"
-        paragon += "╠" + "═"*38 + "╣\n"
-        paragon += "║ Podpis: ________________             ║\n"
-        paragon += "╚" + "═"*38 + "╝\n"
+        paragon = f"""
+H1 PALETY - PARAGON
+Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+Klient: {klient_name}
+Kierowca: {kierowca or 'Brak'}
+Pracownik: {pracownik}
+
+PRZYJĘTE
+Palety: {przyjete_p}
+Pojemniki: {przyjete_po}
+
+WYDANE
+Palety: {wydane_p}
+Pojemniki: {wydane_po}
+
+NETTO
+Palety: {netto_palety:+d}
+Pojemniki: {netto_pojemniki:+d}
+
+Podpis: ________________
+
+"""
         
-        zawartosc = paragon + "\n" + paragon
+        zawartosc = paragon + "\n\n" + paragon
         
         try:
             with open(plik, 'w', encoding='utf-8') as f:
@@ -689,7 +692,6 @@ class MainWindow(tk.Tk):
             try:
                 stan_faktyczny = int(entry.get())
                 
-                # Zakończyć zmianę
                 wynik = db.end_zmiana(self.zmiana_id, stan_faktyczny)
                 
                 if wynik['ma_rozbieznosc']:
@@ -700,7 +702,6 @@ class MainWindow(tk.Tk):
                 else:
                     messagebox.showinfo("✅ OK", "Zmiana zamknięta bez rozbieżności!")
                 
-                # Wyloguj się
                 pin_win = tk.Toplevel(zamknij_win)
                 pin_win.title("Potwierdzenie PIN")
                 pin_win.geometry("400x300")
@@ -748,21 +749,17 @@ class DashboardKierownika(tk.Tk):
         main_frame = tk.Frame(self, bg="white")
         main_frame.pack(fill="both", expand=True, padx=15, pady=15)
         
-        # NOTEBOOK TABS
         notebook = ttk.Notebook(main_frame)
         notebook.pack(fill="both", expand=True)
         
-        # TAB 1: ROZBIEŻNOŚCI
         tab_rozbieznosci = tk.Frame(notebook, bg="white")
         notebook.add(tab_rozbieznosci, text="Rozbieżności")
         self.refresh_rozbieznosci(tab_rozbieznosci)
         
-        # TAB 2: STATUS PRACOWNIKÓW
         tab_status = tk.Frame(notebook, bg="white")
         notebook.add(tab_status, text="Status pracowników")
         self.show_status_pracownikow(tab_status)
         
-        # LOGOUT
         logout_btn = tk.Button(self, text="Wyloguj", command=self.logout, bg="#757575", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10)
         logout_btn.pack(pady=10, padx=20, fill="x")
     
@@ -799,7 +796,6 @@ class DashboardKierownika(tk.Tk):
         
         tree.pack(fill="both", expand=True)
         
-        # AKCJE
         action_frame = tk.Frame(parent, bg="white")
         action_frame.pack(fill="x", padx=10, pady=10)
         
@@ -885,26 +881,21 @@ class PanelAdmina(tk.Tk):
         main_frame = tk.Frame(self, bg="white")
         main_frame.pack(fill="both", expand=True, padx=15, pady=15)
         
-        # NOTEBOOK TABS
         notebook = ttk.Notebook(main_frame)
         notebook.pack(fill="both", expand=True)
         
-        # TAB 1: PRACOWNICY
         tab_pracownicy = tk.Frame(notebook, bg="white")
         notebook.add(tab_pracownicy, text="Pracownicy")
         self.show_pracownicy_admin(tab_pracownicy)
         
-        # TAB 2: ROZBIEŻNOŚCI
         tab_rozbieznosci = tk.Frame(notebook, bg="white")
         notebook.add(tab_rozbieznosci, text="Rozbieżności")
         self.show_rozbieznosci_admin(tab_rozbieznosci)
         
-        # TAB 3: KLIENCI
         tab_klienci = tk.Frame(notebook, bg="white")
         notebook.add(tab_klienci, text="Klienci")
         self.show_klienci_admin(tab_klienci)
         
-        # TAB 4: MAGAZYN
         tab_magazyn = tk.Frame(notebook, bg="white")
         notebook.add(tab_magazyn, text="Stan magazynu")
         self.show_magazyn_admin(tab_magazyn)
@@ -949,6 +940,22 @@ class PanelAdmina(tk.Tk):
         
         tk.Button(btn_frame, text="➕ Dodaj pracownika", command=add_pracownik_win, font=("Arial", 11, "bold"), bg="#4CAF50", fg="white", padx=20, pady=8).pack(side="left", padx=5)
         
+        def delete_pracownik_fn():
+            selection = tree.selection()
+            if not selection:
+                messagebox.showerror("Błąd", "Wybierz pracownika!")
+                return
+            
+            pracownik_id = int(selection[0])
+            if messagebox.askyesno("Potwierdzenie", "Na pewno usunąć tego pracownika?"):
+                if db.delete_pracownik(pracownik_id):
+                    messagebox.showinfo("OK", "Pracownik usunięty!")
+                    self.show_pracownicy_admin(parent)
+                else:
+                    messagebox.showerror("Błąd", "Nie udało się usunąć!")
+        
+        tk.Button(btn_frame, text="❌ Usuń pracownika", command=delete_pracownik_fn, font=("Arial", 11, "bold"), bg="#D32F2F", fg="white", padx=20, pady=8).pack(side="left", padx=5)
+        
         tree_frame = tk.Frame(parent, bg="white")
         tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
@@ -962,7 +969,7 @@ class PanelAdmina(tk.Tk):
         
         pracownicy = db.get_all_pracownicy()
         for p in pracownicy:
-            tree.insert("", "end", values=(p['id'], p['nazwa'], p['rola']))
+            tree.insert("", "end", values=(p['id'], p['nazwa'], p['rola']), iid=p['id'])
         
         tree.pack(fill="both", expand=True)
     
@@ -1038,7 +1045,6 @@ class PanelMagazyniera(tk.Tk):
         main_frame = tk.Frame(self, bg="white")
         main_frame.pack(fill="both", expand=True, padx=15, pady=15)
         
-        # OPERACJE MAGAZYNU
         tk.Label(main_frame, text="OPERACJE MAGAZYNU", font=("Arial", 13, "bold"), bg="white").pack(fill="x", pady=10)
         
         op_frame = tk.Frame(main_frame, bg="#F5F5F5", relief="solid", borderwidth=2)
@@ -1070,7 +1076,6 @@ class PanelMagazyniera(tk.Tk):
         
         tk.Button(op_frame, text="💾 Zapisz", command=zapisz_operacja, font=("Arial", 11, "bold"), bg="#4CAF50", fg="white", padx=20, pady=8).pack(side="left", padx=5, pady=10)
         
-        # HISTORIA OPERACJI
         tk.Label(main_frame, text="HISTORIA OPERACJI", font=("Arial", 13, "bold"), bg="white").pack(fill="x", pady=10)
         
         tree_frame = tk.Frame(main_frame, bg="white")
