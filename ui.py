@@ -52,7 +52,10 @@ class LoginWindow(tk.Tk):
             return
         
         # Logika 3 dni (12h od logowania): zapisz logowanie i sprawdź wygaśnięcie
-        expired = db.record_login_i_sprawdz_rozbieznosci(pracownik['id'])
+        expired = 0
+        record_login = getattr(db, "record_login_i_sprawdz_rozbieznosci", None)
+        if callable(record_login):
+            expired = record_login(pracownik['id'])
         if expired > 0:
             messagebox.showinfo("ℹ️ Rozbieżności wygasły",
                 f"{expired} rozbieżność/i wygasło automatycznie (minęły 3 dni robocze).")
