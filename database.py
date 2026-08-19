@@ -123,7 +123,21 @@ class Database:
             FOREIGN KEY(magazynier_id) REFERENCES pracownicy(id)
         )
         """)
-        
+
+        # TABELA: LOGI OPERACJI KIEROWNIKA
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS kierownik_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kierownik_id INTEGER NOT NULL,
+            data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            typ TEXT NOT NULL,
+            opis TEXT,
+            pracownik_docelowy_id INTEGER,
+            FOREIGN KEY(kierownik_id) REFERENCES pracownicy(id),
+            FOREIGN KEY(pracownik_docelowy_id) REFERENCES pracownicy(id)
+        )
+        """)
+
         cursor.execute("SELECT * FROM pracownicy WHERE pin = '0000'")
         if not cursor.fetchone():
             cursor.execute("INSERT INTO pracownicy (nazwa, pin, rola) VALUES ('Admin', '0000', 'admin')")
@@ -550,6 +564,29 @@ class Database:
         conn.commit()
         conn.close()
         self.update_magazyn(ilosc if typ == "przyjecie" else -ilosc)
+
+    def add_kierownik_log(self, kierownik_id, typ, opis="", pracownik_docelowy_id=None):
+        """Zapisz operację kierownika do logu"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO kierownik_log (kierownik_id, typ, opis, pracownik_docelowy_id) VALUES (?, ?, ?, ?)",
+            (kierownik_id, typ, opis, pracownik_docelowy_id)
+        )
+        conn.commit()
+        conn.close()
+
+    def get_licznik_rozbieznosci(self, pracownik_id):
+        """Zwróć informacje o otwartych rozbieżnościach z licznikiem (ile logowań zostało)"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM rozbieznosci WHERE pracownik_id = ? AND status IN ('czeka', 'wyjasnione') ORDER BY data_rozpoczecia DESC",
+            (pracownik_id,)
+        )
+        result = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+        return result
 
     def get_magazyn_operacje(self, limit=50):
         """Pobrać operacje magazynu"""
