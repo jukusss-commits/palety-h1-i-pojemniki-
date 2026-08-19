@@ -22,7 +22,7 @@ class Database:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nazwa TEXT NOT NULL,
             pin TEXT UNIQUE NOT NULL,
-            rola TEXT DEFAULT 'pracownik'
+            rola TEXT DEFAULT 'kierownik'
         )
         """)
         
@@ -141,15 +141,15 @@ class Database:
         conn.close()
         return dict(result) if result else None
 
-    def add_pracownik(self, nazwa, pin, rola="pracownik"):
+    def add_pracownik(self, nazwa, pin, rola="kierownik"):
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
             cursor.execute("INSERT INTO pracownicy (nazwa, pin, rola) VALUES (?, ?, ?)", (nazwa, pin, rola))
             conn.commit()
-            return True
+            return cursor.lastrowid
         except:
-            return False
+            return None
         finally:
             conn.close()
 

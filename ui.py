@@ -6,6 +6,71 @@ from datetime import datetime
 import os
 import subprocess
 
+AKTUALNE_ROLE = ("kierownik", "magazynier", "admin")
+
+
+def czy_pin_poprawny(pin):
+    return pin.isdigit() and len(pin) == 4
+
+
+def otworz_okno_zmiany_pin(parent, pracownik, require_current_pin=True, on_success=None):
+    pin_win = tk.Toplevel(parent)
+    pin_win.title("Zmiana PIN")
+    pin_win.geometry("400x320")
+    pin_win.grab_set()
+
+    tk.Label(pin_win, text=f"Zmiana PIN - {pracownik['nazwa']}", font=("Arial", 12, "bold")).pack(pady=15)
+
+    current_pin_entry = None
+    if require_current_pin:
+        tk.Label(pin_win, text="Aktualny PIN:", font=("Arial", 11, "bold")).pack(pady=5)
+        current_pin_entry = tk.Entry(pin_win, show="*", font=("Arial", 11), width=20)
+        current_pin_entry.pack(pady=5)
+        current_pin_entry.focus()
+
+    tk.Label(pin_win, text="Nowy PIN (4 cyfry):", font=("Arial", 11, "bold")).pack(pady=5)
+    nowy_pin_entry = tk.Entry(pin_win, show="*", font=("Arial", 11), width=20)
+    nowy_pin_entry.pack(pady=5)
+
+    tk.Label(pin_win, text="Potwierdź nowy PIN:", font=("Arial", 11, "bold")).pack(pady=5)
+    potwierdzenie_pin_entry = tk.Entry(pin_win, show="*", font=("Arial", 11), width=20)
+    potwierdzenie_pin_entry.pack(pady=5)
+
+    if not require_current_pin:
+        nowy_pin_entry.focus()
+
+    def zapisz_pin():
+        aktualny_pin = current_pin_entry.get() if current_pin_entry else None
+        nowy_pin = nowy_pin_entry.get()
+        potwierdzenie_pin = potwierdzenie_pin_entry.get()
+
+        if require_current_pin and aktualny_pin != pracownik['pin']:
+            messagebox.showerror("Błąd", "Aktualny PIN jest niepoprawny!")
+            return
+
+        if not czy_pin_poprawny(nowy_pin):
+            messagebox.showerror("Błąd", "PIN musi mieć dokładnie 4 cyfry!")
+            return
+
+        if nowy_pin != potwierdzenie_pin:
+            messagebox.showerror("Błąd", "PIN-y nie są takie same!")
+            return
+
+        if require_current_pin and nowy_pin == pracownik['pin']:
+            messagebox.showerror("Błąd", "Nowy PIN musi być inny niż aktualny!")
+            return
+
+        if db.update_pracownik_pin(pracownik['id'], nowy_pin):
+            pracownik['pin'] = nowy_pin
+            if on_success:
+                on_success(nowy_pin)
+            pin_win.destroy()
+            messagebox.showinfo("OK", "PIN został zmieniony!")
+        else:
+            messagebox.showerror("Błąd", "Nie udało się zmienić PIN-u!")
+
+    tk.Button(pin_win, text="Zapisz PIN", command=zapisz_pin, font=("Arial", 11, "bold"), bg="#4CAF50", fg="white", padx=25, pady=10).pack(pady=20)
+
 # ===== LOGIN WINDOW =====
 class LoginWindow(tk.Tk):
     def __init__(self):
@@ -45,24 +110,23 @@ class LoginWindow(tk.Tk):
             self.pin_entry.delete(0, "end")
             return
         
-        otwarta = db.get_aktywna_zmiana(pracownik['id'])
-        if otwarta:
-            messagebox.showerror("Błąd", "Masz otwartą zmianę! Najpierw ją zamknij.")
-            self.pin_entry.delete(0, "end")
-            return
-        
-        ma_rozbieznosc = db.czy_ma_otwarta_rozbieznosc(pracownik['id'])
-        
-        self.destroy()
-        
-        if pracownik['rola'] == 'pracownik':
-            app = PoczatekZmianyWindow(pracownik, ma_rozbieznosc)
-        elif pracownik['rola'] == 'kierownik':
+        if pracownik['rola'] == 'kierownik':
             app = DashboardKierownika(pracownik)
         elif pracownik['rola'] == 'admin':
             app = PanelAdmina(pracownik)
         elif pracownik['rola'] == 'magazynier':
             app = PanelMagazyniera(pracownik)
+        else:
+            otwarta = db.get_aktywna_zmiana(pracownik['id'])
+            if otwarta:
+                messagebox.showerror("Błąd", "Masz otwartą zmianę! Najpierw ją zamknij.")
+                self.pin_entry.delete(0, "end")
+                return
+            
+            ma_rozbieznosc = db.czy_ma_otwarta_rozbieznosc(pracownik['id'])
+            app = PoczatekZmianyWindow(pracownik, ma_rozbieznosc)
+        
+        self.destroy()
         
         app.mainloop()
 
@@ -147,6 +211,13 @@ class PoczatekZmianyWindow(tk.Tk):
         
         tk.Button(btn_frame, text="✅ TAK - Przejmuję", command=potwierdz, font=("Arial", 12, "bold"), bg="#4CAF50", fg="white", padx=20, pady=12).pack(fill="x", pady=5)
         tk.Button(btn_frame, text="❌ NIE - Mam inny stan", command=niezgodnosc, font=("Arial", 12, "bold"), bg="#FF9800", fg="white", padx=20, pady=12).pack(fill="x", pady=5)
+        tk.Button(btn_frame, text="🔐 Zmień PIN", command=lambda: otworz_okno_zmiany_pin(self, self.user), font=("Arial", 12, "bold"), bg="#2196F3", fg="white", padx=20, pady=12).pack(fill="x", pady=5)
+        tk.Button(btn_frame, text="Wyloguj", command=self.logout, font=("Arial", 12, "bold"), bg="#757575", fg="white", padx=20, pady=12).pack(fill="x", pady=5)
+
+    def logout(self):
+        self.destroy()
+        app = LoginWindow()
+        app.mainloop()
 
 # ===== MAIN WINDOW (PRACOWNIK) =====
 class MainWindow(tk.Tk):
@@ -177,6 +248,9 @@ class MainWindow(tk.Tk):
         
         btn_add_klient = tk.Button(top_info_frame, text="➕ Dodaj klienta", command=self.add_klient_window, font=("Arial", 12, "bold"), bg="#FF9800", fg="white", padx=15, pady=8)
         btn_add_klient.pack(side="left", padx=5)
+
+        btn_change_pin = tk.Button(top_info_frame, text="🔐 Zmień PIN", command=lambda: otworz_okno_zmiany_pin(self, self.user), font=("Arial", 12, "bold"), bg="#2196F3", fg="white", padx=15, pady=8)
+        btn_change_pin.pack(side="left", padx=5)
         
         mag_frame = tk.Frame(top_info_frame, bg="#FFE082", relief="solid", borderwidth=2, padx=15, pady=8)
         mag_frame.pack(side="left", padx=20, fill="x", expand=True)
@@ -760,8 +834,11 @@ class DashboardKierownika(tk.Tk):
         notebook.add(tab_status, text="Status pracowników")
         self.show_status_pracownikow(tab_status)
         
-        logout_btn = tk.Button(self, text="Wyloguj", command=self.logout, bg="#757575", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10)
-        logout_btn.pack(pady=10, padx=20, fill="x")
+        action_frame = tk.Frame(self, bg="white")
+        action_frame.pack(fill="x", pady=10, padx=20)
+
+        tk.Button(action_frame, text="🔐 Zmień PIN", command=lambda: otworz_okno_zmiany_pin(self, self.user), bg="#2196F3", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        tk.Button(action_frame, text="Wyloguj", command=self.logout, bg="#757575", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10).pack(side="left", fill="x", expand=True, padx=(5, 0))
     
     def refresh_rozbieznosci(self, parent):
         for widget in parent.winfo_children():
@@ -900,10 +977,16 @@ class PanelAdmina(tk.Tk):
         notebook.add(tab_magazyn, text="Stan magazynu")
         self.show_magazyn_admin(tab_magazyn)
         
-        logout_btn = tk.Button(self, text="Wyloguj", command=self.logout, bg="#757575", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10)
-        logout_btn.pack(pady=10, padx=20, fill="x")
+        action_frame = tk.Frame(self, bg="white")
+        action_frame.pack(fill="x", pady=10, padx=20)
+
+        tk.Button(action_frame, text="🔐 Zmień PIN", command=lambda: otworz_okno_zmiany_pin(self, self.user), bg="#2196F3", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        tk.Button(action_frame, text="Wyloguj", command=self.logout, bg="#757575", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10).pack(side="left", fill="x", expand=True, padx=(5, 0))
     
     def show_pracownicy_admin(self, parent):
+        for widget in parent.winfo_children():
+            widget.destroy()
+
         tk.Label(parent, text="PRACOWNICY", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
         
         btn_frame = tk.Frame(parent, bg="white")
@@ -924,13 +1007,25 @@ class PanelAdmina(tk.Tk):
             pin.pack(pady=5)
             
             tk.Label(add_win, text="Rola:", font=("Arial", 11, "bold")).pack(pady=5)
-            rola = ttk.Combobox(add_win, values=["pracownik", "kierownik", "magazynier", "admin"], font=("Arial", 11), width=37, state="readonly")
+            rola = ttk.Combobox(add_win, values=list(AKTUALNE_ROLE), font=("Arial", 11), width=37, state="readonly")
             rola.pack(pady=5)
-            rola.set("pracownik")
+            rola.set("kierownik")
             
             def save():
-                if db.add_pracownik(nazwa.get(), pin.get(), rola.get()):
-                    messagebox.showinfo("OK", "Pracownik dodany!")
+                nazwa_pracownika = nazwa.get().strip()
+                pin_pracownika = pin.get().strip()
+
+                if not nazwa_pracownika:
+                    messagebox.showerror("Błąd", "Wpisz nazwę pracownika!")
+                    return
+
+                if not czy_pin_poprawny(pin_pracownika):
+                    messagebox.showerror("Błąd", "PIN musi mieć dokładnie 4 cyfry!")
+                    return
+
+                pracownik_id = db.add_pracownik(nazwa_pracownika, pin_pracownika, rola.get())
+                if pracownik_id:
+                    messagebox.showinfo("OK", f"Pracownik dodany!\nID: {pracownik_id}")
                     add_win.destroy()
                     self.show_pracownicy_admin(parent)
                 else:
@@ -947,14 +1042,34 @@ class PanelAdmina(tk.Tk):
                 return
             
             pracownik_id = int(selection[0])
-            if messagebox.askyesno("Potwierdzenie", "Na pewno usunąć tego pracownika?"):
+            pracownik_dane = tree.item(selection[0], "values")
+            if messagebox.askyesno("Potwierdzenie", f"Na pewno usunąć pracownika ID {pracownik_id} - {pracownik_dane[1]}?"):
                 if db.delete_pracownik(pracownik_id):
-                    messagebox.showinfo("OK", "Pracownik usunięty!")
+                    messagebox.showinfo("OK", f"Pracownik usunięty!\nID: {pracownik_id}")
                     self.show_pracownicy_admin(parent)
                 else:
                     messagebox.showerror("Błąd", "Nie udało się usunąć!")
         
         tk.Button(btn_frame, text="❌ Usuń pracownika", command=delete_pracownik_fn, font=("Arial", 11, "bold"), bg="#D32F2F", fg="white", padx=20, pady=8).pack(side="left", padx=5)
+
+        def change_pracownik_pin_fn():
+            selection = tree.selection()
+            if not selection:
+                messagebox.showerror("Błąd", "Wybierz pracownika!")
+                return
+
+            pracownik = db.get_pracownik_by_id(int(selection[0]))
+            if not pracownik:
+                messagebox.showerror("Błąd", "Nie znaleziono pracownika!")
+                return
+
+            def on_success(nowy_pin):
+                if pracownik['id'] == self.user['id']:
+                    self.user['pin'] = nowy_pin
+
+            otworz_okno_zmiany_pin(parent, pracownik, require_current_pin=False, on_success=on_success)
+
+        tk.Button(btn_frame, text="🔐 Zmień PIN pracownika", command=change_pracownik_pin_fn, font=("Arial", 11, "bold"), bg="#2196F3", fg="white", padx=20, pady=8).pack(side="left", padx=5)
         
         tree_frame = tk.Frame(parent, bg="white")
         tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -1101,8 +1216,11 @@ class PanelMagazyniera(tk.Tk):
         refresh_operacje()
         tree.pack(fill="both", expand=True)
         
-        logout_btn = tk.Button(self, text="Wyloguj", command=self.logout, bg="#757575", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10)
-        logout_btn.pack(pady=10, padx=20, fill="x")
+        action_frame = tk.Frame(self, bg="white")
+        action_frame.pack(fill="x", pady=10, padx=20)
+
+        tk.Button(action_frame, text="🔐 Zmień PIN", command=lambda: otworz_okno_zmiany_pin(self, self.user), bg="#2196F3", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        tk.Button(action_frame, text="Wyloguj", command=self.logout, bg="#757575", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10).pack(side="left", fill="x", expand=True, padx=(5, 0))
     
     def logout(self):
         self.destroy()
