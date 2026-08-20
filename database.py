@@ -22,7 +22,7 @@ class Database:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nazwa TEXT NOT NULL,
             pin TEXT UNIQUE NOT NULL,
-            rola TEXT DEFAULT 'pracownik'
+            rola TEXT DEFAULT 'magazynier'
         )
         """)
         
