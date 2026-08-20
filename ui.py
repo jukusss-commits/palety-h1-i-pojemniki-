@@ -51,22 +51,20 @@ class LoginWindow(tk.Tk):
             self.pin_entry.delete(0, "end")
             return
         
-        # Logika 3 logowań - wywołaj dla pracownika
-        if pracownik['rola'] == 'pracownik':
+        # Logika 3 logowań - dla magazyniera
+        if pracownik['rola'] == 'magazynier':
             db.record_login_i_sprawdz_rozbieznosci(pracownik['id'])
         
         ma_rozbieznosc = db.czy_ma_otwarta_rozbieznosc(pracownik['id'])
         
         self.destroy()
         
-        if pracownik['rola'] == 'pracownik':
+        if pracownik['rola'] == 'magazynier':
             app = PoczatekZmianyWindow(pracownik, ma_rozbieznosc)
         elif pracownik['rola'] == 'kierownik':
             app = DashboardKierownika(pracownik)
         elif pracownik['rola'] == 'admin':
             app = PanelAdmina(pracownik)
-        elif pracownik['rola'] == 'magazynier':
-            app = PanelMagazyniera(pracownik)
         
         app.mainloop()
 
@@ -166,7 +164,7 @@ class MainWindow(tk.Tk):
         
         header_label = tk.Label(
             header, 
-            text=f"H1 PALETY - {user['nazwa']} (PRACOWNIK)", 
+            text=f"H1 PALETY - {user['nazwa']} ({user['rola'].upper()})", 
             font=("Arial", 18, "bold"),
             bg="#FF6B6B",
             fg="white"
@@ -592,86 +590,75 @@ class MainWindow(tk.Tk):
         tk.Button(btn_frame, text="✏️ POPRAW", command=lambda: druk_win.destroy(), font=("Arial", 11, "bold"), bg="#2196F3", fg="white", padx=20, pady=8).pack(fill="x", pady=3)
         tk.Button(btn_frame, text="❌ ZAMKNIJ", command=lambda: druk_win.destroy(), font=("Arial", 11, "bold"), bg="#9E9E9E", fg="white", padx=20, pady=8).pack(fill="x", pady=3)
     
-    def drukuj_paragon_z_danymi(self, przyjete_p, przyjete_po, wydane_p, wydane_po, kierowca):
+    def _buduj_paragon(self, przyjete_p, przyjete_po, wydane_p, wydane_po, kierowca):
         klient_name = self.selected_label.cget("text")
         pracownik = self.user['nazwa']
+        netto_palety = przyjete_p - wydane_p
+        netto_pojemniki = przyjete_po - wydane_po
+        if netto_palety == 0:
+            netto_p_str = "±0"
+        else:
+            netto_p_str = f"{netto_palety:+d}"
+        if netto_pojemniki == 0:
+            netto_po_str = "±0"
+        else:
+            netto_po_str = f"{netto_pojemniki:+d}"
+
+        paragon = (
+            f"H1 PALETY - PARAGON\n"
+            f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
+            f"Klient: {klient_name}\n"
+            f"Kierowca: {kierowca or 'Brak'}\n"
+            f"Magazynier: {pracownik}\n"
+            f"\n"
+            f"ZDAŁ\n"
+            f"Palety: {przyjete_p}\n"
+            f"Pojemniki: {przyjete_po}\n"
+            f"\n"
+            f"POBRAŁ\n"
+            f"Palety: {wydane_p}\n"
+            f"Pojemniki: {wydane_po}\n"
+            f"\n"
+            f"NETTO\n"
+            f"Palety: {netto_p_str}\n"
+            f"Pojemniki: {netto_po_str}\n"
+            f"\n"
+            f"Kierowca: .........................\n"
+            f"\n"
+            f"Przyjmujący: .........................\n"
+        )
+        return klient_name, paragon
+
+    def drukuj_paragon_z_danymi(self, przyjete_p, przyjete_po, wydane_p, wydane_po, kierowca):
+        klient_name, paragon = self._buduj_paragon(przyjete_p, przyjete_po, wydane_p, wydane_po, kierowca)
         
         os.makedirs("archiwum", exist_ok=True)
         plik = f"archiwum/paragon_{klient_name.replace(' ', '_').replace('(', '').replace(')', '')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         
-        netto_palety = przyjete_p - wydane_p
-        netto_pojemniki = przyjete_po - wydane_po
-        
-        paragon = f"""
-H1 PALETY - PARAGON
-Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-Klient: {klient_name}
-Kierowca: {kierowca or 'Brak'}
-Pracownik: {pracownik}
-
-PRZYJĘTE
-Palety: {przyjete_p}
-Pojemniki: {przyjete_po}
-
-WYDANE
-Palety: {wydane_p}
-Pojemniki: {wydane_po}
-
-NETTO
-Palety: {netto_palety:+d}
-Pojemniki: {netto_pojemniki:+d}
-
-Podpis: ________________
-
-"""
-        
-        zawartosc = paragon + "\n\n" + paragon
+        zawartosc = paragon + "\n" + "-" * 40 + "\n\n" + paragon
         
         try:
             with open(plik, 'w', encoding='utf-8') as f:
                 f.write(zawartosc)
             
             try:
-                subprocess.Popen(f'notepad /p "{plik}"', shell=True)
-            except:
+                import sys
+                if sys.platform == 'win32':
+                    os.startfile(os.path.abspath(plik), 'print')
+                else:
+                    subprocess.Popen(['lp', plik])
+            except Exception:
                 pass
         except Exception as e:
             messagebox.showerror("Błąd", f"Nie udało się zapisać: {str(e)}")
     
     def zapisz_paragon_bez_druku(self, przyjete_p, przyjete_po, wydane_p, wydane_po, kierowca):
-        klient_name = self.selected_label.cget("text")
-        pracownik = self.user['nazwa']
+        klient_name, paragon = self._buduj_paragon(przyjete_p, przyjete_po, wydane_p, wydane_po, kierowca)
         
         os.makedirs("archiwum", exist_ok=True)
         plik = f"archiwum/paragon_{klient_name.replace(' ', '_').replace('(', '').replace(')', '')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         
-        netto_palety = przyjete_p - wydane_p
-        netto_pojemniki = przyjete_po - wydane_po
-        
-        paragon = f"""
-H1 PALETY - PARAGON
-Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-Klient: {klient_name}
-Kierowca: {kierowca or 'Brak'}
-Pracownik: {pracownik}
-
-PRZYJĘTE
-Palety: {przyjete_p}
-Pojemniki: {przyjete_po}
-
-WYDANE
-Palety: {wydane_p}
-Pojemniki: {wydane_po}
-
-NETTO
-Palety: {netto_palety:+d}
-Pojemniki: {netto_pojemniki:+d}
-
-Podpis: ________________
-
-"""
-        
-        zawartosc = paragon + "\n\n" + paragon
+        zawartosc = paragon + "\n" + "-" * 40 + "\n\n" + paragon
         
         try:
             with open(plik, 'w', encoding='utf-8') as f:
@@ -756,13 +743,13 @@ class DashboardKierownika(tk.Tk):
     def __init__(self, user):
         super().__init__()
         self.user = user
-        self.title(f"H1 Palety - Dashboard kierownika - {user['nazwa']}")
+        self.title(f"H1 Palety - Panel Kierownika - {user['nazwa']}")
         self.geometry("1400x900")
         
         header = tk.Frame(self, bg="#2196F3", height=60)
         header.pack(fill="x")
         
-        tk.Label(header, text=f"DASHBOARD KIEROWNIKA - {user['nazwa']}", font=("Arial", 16, "bold"), bg="#2196F3", fg="white").pack(pady=15)
+        tk.Label(header, text=f"PANEL KIEROWNIKA - {user['nazwa']}", font=("Arial", 16, "bold"), bg="#2196F3", fg="white").pack(pady=15)
         
         main_frame = tk.Frame(self, bg="white")
         main_frame.pack(fill="both", expand=True, padx=15, pady=15)
@@ -770,25 +757,91 @@ class DashboardKierownika(tk.Tk):
         notebook = ttk.Notebook(main_frame)
         notebook.pack(fill="both", expand=True)
         
+        tab_pracownicy = tk.Frame(notebook, bg="white")
+        notebook.add(tab_pracownicy, text="Pracownicy")
+        self.show_pracownicy_kierownik(tab_pracownicy)
+
         tab_rozbieznosci = tk.Frame(notebook, bg="white")
         notebook.add(tab_rozbieznosci, text="Rozbieżności")
         self.refresh_rozbieznosci(tab_rozbieznosci)
-        
-        tab_status = tk.Frame(notebook, bg="white")
-        notebook.add(tab_status, text="Status pracowników")
-        self.show_status_pracownikow(tab_status)
 
-        tab_pin = tk.Frame(notebook, bg="white")
-        notebook.add(tab_pin, text="Zmiana PIN")
-        self.show_zmiana_pin(tab_pin)
+        tab_klienci = tk.Frame(notebook, bg="white")
+        notebook.add(tab_klienci, text="Klienci")
+        self.show_klienci_ro(tab_klienci)
 
-        tab_mag_op = tk.Frame(notebook, bg="white")
-        notebook.add(tab_mag_op, text="Operacje magazynu")
-        self.show_operacje_magazynu(tab_mag_op)
+        tab_magazyn = tk.Frame(notebook, bg="white")
+        notebook.add(tab_magazyn, text="Stan magazynu")
+        self.show_magazyn_ro(tab_magazyn)
         
         logout_btn = tk.Button(self, text="Wyloguj", command=self.logout, bg="#757575", fg="white", font=("Arial", 11, "bold"), padx=20, pady=10)
         logout_btn.pack(pady=10, padx=20, fill="x")
-    
+
+    def show_pracownicy_kierownik(self, parent):
+        tk.Label(parent, text="PRACOWNICY", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
+
+        tree_frame = tk.Frame(parent, bg="white")
+        tree_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+        columns = ("ID", "Nazwa", "Rola")
+        tree = ttk.Treeview(tree_frame, columns=columns, height=18, show="headings")
+        widths = [50, 250, 150]
+        for col, width in zip(columns, widths):
+            tree.heading(col, text=col)
+            tree.column(col, width=width)
+
+        pracownicy = db.get_all_pracownicy()
+        for p in pracownicy:
+            tree.insert("", "end", values=(p['id'], p['nazwa'], p['rola']), iid=p['id'])
+
+        tree.pack(fill="both", expand=True)
+
+        action_frame = tk.Frame(parent, bg="white")
+        action_frame.pack(fill="x", padx=10, pady=10)
+
+        def zmien_pin_magazyniera():
+            selection = tree.selection()
+            if not selection:
+                messagebox.showerror("Błąd", "Wybierz pracownika!")
+                return
+            pracownik_id = int(selection[0])
+            p = db.get_pracownik_by_id(pracownik_id)
+            if p['rola'] != 'magazynier':
+                messagebox.showerror("Brak uprawnień", "Kierownik może zmienić PIN tylko magazynierowi!")
+                return
+
+            pin_win = tk.Toplevel(parent)
+            pin_win.title(f"Zmiana PIN - {p['nazwa']}")
+            pin_win.geometry("400x280")
+            pin_win.grab_set()
+
+            tk.Label(pin_win, text=f"Zmiana PIN dla: {p['nazwa']}", font=("Arial", 12, "bold")).pack(pady=15)
+            tk.Label(pin_win, text="Nowy PIN:", font=("Arial", 11)).pack()
+            pin1 = tk.Entry(pin_win, show="*", font=("Arial", 13), width=20)
+            pin1.pack(pady=5)
+            tk.Label(pin_win, text="Potwierdź PIN:", font=("Arial", 11)).pack()
+            pin2 = tk.Entry(pin_win, show="*", font=("Arial", 13), width=20)
+            pin2.pack(pady=5)
+
+            def zapisz():
+                n1 = pin1.get().strip()
+                n2 = pin2.get().strip()
+                if not n1:
+                    messagebox.showerror("Błąd", "Wpisz PIN!")
+                    return
+                if n1 != n2:
+                    messagebox.showerror("Błąd", "PINy nie są identyczne!")
+                    return
+                if db.update_pracownik_pin(pracownik_id, n1):
+                    db.add_kierownik_log(self.user['id'], 'zmiana_pin', f"Zmiana PIN magazyniera: {p['nazwa']}", pracownik_id)
+                    messagebox.showinfo("OK", f"PIN dla {p['nazwa']} zmieniony!")
+                    pin_win.destroy()
+                else:
+                    messagebox.showerror("Błąd", "Nie udało się zmienić PIN!")
+
+            tk.Button(pin_win, text="🔑 Zmień PIN", command=zapisz, font=("Arial", 12, "bold"), bg="#2196F3", fg="white", padx=20, pady=10).pack(pady=15)
+
+        tk.Button(action_frame, text="🔑 Zmień PIN magazyniera", command=zmien_pin_magazyniera, font=("Arial", 11, "bold"), bg="#2196F3", fg="white", padx=20, pady=8).pack(side="left", padx=5)
+
     def refresh_rozbieznosci(self, parent):
         for widget in parent.winfo_children():
             widget.destroy()
@@ -798,10 +851,10 @@ class DashboardKierownika(tk.Tk):
         tree_frame = tk.Frame(parent, bg="white")
         tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        columns = ("Pracownik", "Data", "Stan przejęty", "Stan faktyczny", "Różnica", "Status", "Logowania (maks 3)", "Data ważności", "Moja notatka", "Notatka KW")
+        columns = ("Magazynier", "Data", "Różnica", "Status", "Logowania (0/3)", "Dni do wygaśnięcia", "Notatka KW")
         tree = ttk.Treeview(tree_frame, columns=columns, height=18, show="headings")
         
-        widths = [120, 130, 100, 100, 70, 100, 130, 130, 180, 180]
+        widths = [150, 130, 80, 110, 130, 130, 250]
         for col, width in zip(columns, widths):
             tree.heading(col, text=col)
             tree.column(col, width=width)
@@ -810,24 +863,20 @@ class DashboardKierownika(tk.Tk):
         for r in rozbieznosci:
             data = r['data_rozpoczecia'].split('.')[0] if '.' in r['data_rozpoczecia'] else r['data_rozpoczecia']
             licznik = r.get('licznik_dni') or 0
-            pozostalo_login = max(0, 3 - licznik)
-            # Data ważności = data_rozpoczecia + 3 logowania (szacunkowo 3 dni)
+            pozostalo = max(0, 3 - licznik)
             try:
-                from datetime import datetime, timedelta
-                dt = datetime.fromisoformat(r['data_rozpoczecia'].split('.')[0])
-                data_waznosci = (dt + timedelta(days=3)).strftime('%Y-%m-%d')
+                from datetime import datetime as _dt, timedelta as _td
+                dt = _dt.fromisoformat(r['data_rozpoczecia'].split('.')[0])
+                dni_do_wyg = max(0, (dt + _td(days=3) - _dt.now()).days)
             except Exception:
-                data_waznosci = "-"
+                dni_do_wyg = "-"
             tree.insert("", "end", values=(
                 r['pracownik_nazwa'],
                 data,
-                r['stan_przejety'],
-                r['stan_faktyczny'],
                 f"{r['roznica']:+d}",
                 r['status'].upper(),
-                f"{licznik}/3 (zostało: {pozostalo_login})",
-                data_waznosci,
-                r['notatka_pracownika'] or "-",
+                f"{licznik}/3",
+                dni_do_wyg,
                 r['notatka_kierownika'] or "-"
             ), iid=r['id'])
         
@@ -846,210 +895,46 @@ class DashboardKierownika(tk.Tk):
             
             zatw_win = tk.Toplevel(parent)
             zatw_win.title("Zatwierdzenie rozbieżności")
-            zatw_win.geometry("500x400")
+            zatw_win.geometry("500x350")
             zatw_win.grab_set()
             
             tk.Label(zatw_win, text="Notatka kierownika:", font=("Arial", 11, "bold")).pack(pady=10)
             notatka = tk.Entry(zatw_win, font=("Arial", 11), width=50)
             notatka.pack(fill="x", padx=10, pady=5)
             
-            tk.Label(zatw_win, text="Nowa różnica (opcjonalnie):", font=("Arial", 11, "bold")).pack(pady=10)
-            nowa_roznica = tk.Entry(zatw_win, font=("Arial", 11), width=10)
-            nowa_roznica.pack(pady=5)
-            
             def zapisz_zatw():
                 try:
-                    nr = int(nowa_roznica.get()) if nowa_roznica.get() else None
-                    db.zatwierdzenie_rozbieznosci(rozbieznosc_id, self.user['id'], notatka.get(), nr)
-                    db.add_kierownik_log(self.user['id'], 'zatwierdzenie_rozbieznosci', f"ID rozbieżności: {rozbieznosc_id}; notatka: {notatka.get()}")
+                    db.zatwierdzenie_rozbieznosci(rozbieznosc_id, self.user['id'], notatka.get())
+                    db.add_kierownik_log(self.user['id'], 'zatwierdzenie_rozbieznosci', f"ID: {rozbieznosc_id}; notatka: {notatka.get()}")
                     messagebox.showinfo("OK", "Rozbieżność zatwierdzona!")
                     zatw_win.destroy()
                     self.refresh_rozbieznosci(parent)
                 except Exception:
                     messagebox.showerror("Błąd", "Sprawdź dane!")
             
-            tk.Button(zatw_win, text="Zatwierdź", command=zapisz_zatw, font=("Arial", 12, "bold"), bg="#4CAF50", fg="white", padx=20, pady=10).pack(pady=20)
+            tk.Button(zatw_win, text="✅ Zatwierdź", command=zapisz_zatw, font=("Arial", 12, "bold"), bg="#4CAF50", fg="white", padx=20, pady=10).pack(pady=20)
         
         tk.Button(action_frame, text="✅ Zatwierdź rozbieżność", command=zatwierdz, font=("Arial", 11, "bold"), bg="#4CAF50", fg="white", padx=20, pady=8).pack(side="left", padx=5)
-    
-    def show_status_pracownikow(self, parent):
-        tk.Label(parent, text="STATUS PRACOWNIKÓW", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
-        
+
+    def show_klienci_ro(self, parent):
+        tk.Label(parent, text="KLIENCI (tylko do odczytu)", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
         tree_frame = tk.Frame(parent, bg="white")
         tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        
-        columns = ("Pracownik", "Status", "Rozbieżności")
+        columns = ("ID", "Nazwa", "NIP")
         tree = ttk.Treeview(tree_frame, columns=columns, height=20, show="headings")
-        
-        widths = [200, 150, 150]
-        for col, width in zip(columns, widths):
+        for col, w in zip(columns, [50, 300, 200]):
             tree.heading(col, text=col)
-            tree.column(col, width=width)
-        
-        pracownicy = db.get_all_pracownicy()
-        for p in pracownicy:
-            if p['rola'] == 'pracownik':
-                aktywna = db.get_aktywna_zmiana(p['id'])
-                rozbieznosci = db.get_rozbieznosci_pracownika(p['id'])
-                otwarte = len([r for r in rozbieznosci if r['status'] == 'czeka'])
-                
-                status = "Online" if aktywna else "Offline"
-                tree.insert("", "end", values=(p['nazwa'], status, f"{otwarte} do wyjaśnienia"))
-        
+            tree.column(col, width=w)
+        for k in db.get_all_klienci():
+            tree.insert("", "end", values=(k['id'], k['nazwa'], k['nip'] or "-"))
         tree.pack(fill="both", expand=True)
 
-    def show_zmiana_pin(self, parent):
-        tk.Label(parent, text="ZMIANA PIN PRACOWNIKA / KIEROWNIKA", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
-
-        frame = tk.Frame(parent, bg="white")
-        frame.pack(fill="x", padx=30, pady=10)
-
-        tk.Label(frame, text="Wybierz pracownika:", font=("Arial", 11, "bold"), bg="white").pack(anchor="w", pady=(10, 2))
-        pracownicy = db.get_all_pracownicy()
-        opcje = [f"{p['id']} - {p['nazwa']} ({p['rola']})" for p in pracownicy if p['rola'] != 'admin']
-        wybrany = tk.StringVar()
-        combo = ttk.Combobox(frame, values=opcje, textvariable=wybrany, font=("Arial", 11), width=40, state="readonly")
-        combo.pack(anchor="w", pady=5)
-
-        tk.Label(frame, text="Nowy PIN:", font=("Arial", 11, "bold"), bg="white").pack(anchor="w", pady=(10, 2))
-        pin_entry = tk.Entry(frame, show="*", font=("Arial", 13), width=20)
-        pin_entry.pack(anchor="w", pady=5)
-
-        tk.Label(frame, text="Potwierdź nowy PIN:", font=("Arial", 11, "bold"), bg="white").pack(anchor="w", pady=(10, 2))
-        pin_entry2 = tk.Entry(frame, show="*", font=("Arial", 13), width=20)
-        pin_entry2.pack(anchor="w", pady=5)
-
-        def zmien_pin():
-            wyb = wybrany.get()
-            if not wyb:
-                messagebox.showerror("Błąd", "Wybierz pracownika!")
-                return
-            nowy_pin = pin_entry.get().strip()
-            nowy_pin2 = pin_entry2.get().strip()
-            if not nowy_pin:
-                messagebox.showerror("Błąd", "Wpisz nowy PIN!")
-                return
-            if nowy_pin != nowy_pin2:
-                messagebox.showerror("Błąd", "PINy nie są identyczne!")
-                return
-            pracownik_id = int(wyb.split(" - ")[0])
-            p = db.get_pracownik_by_id(pracownik_id)
-            if db.update_pracownik_pin(pracownik_id, nowy_pin):
-                db.add_kierownik_log(self.user['id'], 'zmiana_pin', f"Zmiana PIN pracownika: {p['nazwa']}", pracownik_id)
-                messagebox.showinfo("OK", f"PIN pracownika {p['nazwa']} zmieniony!")
-                pin_entry.delete(0, "end")
-                pin_entry2.delete(0, "end")
-            else:
-                messagebox.showerror("Błąd", "Nie udało się zmienić PIN!")
-
-        tk.Button(frame, text="🔑 Zmień PIN", command=zmien_pin, font=("Arial", 12, "bold"), bg="#2196F3", fg="white", padx=20, pady=10).pack(anchor="w", pady=15)
-
-        # Zmiana własnego PIN
-        sep = tk.Frame(frame, bg="#BDBDBD", height=2)
-        sep.pack(fill="x", pady=15)
-
-        tk.Label(frame, text="Zmień własny PIN (kierownik):", font=("Arial", 11, "bold"), bg="white").pack(anchor="w", pady=(5, 2))
-        tk.Label(frame, text="Stary PIN:", font=("Arial", 11), bg="white").pack(anchor="w")
-        stary_pin = tk.Entry(frame, show="*", font=("Arial", 13), width=20)
-        stary_pin.pack(anchor="w", pady=3)
-        tk.Label(frame, text="Nowy PIN:", font=("Arial", 11), bg="white").pack(anchor="w")
-        wl_pin1 = tk.Entry(frame, show="*", font=("Arial", 13), width=20)
-        wl_pin1.pack(anchor="w", pady=3)
-        tk.Label(frame, text="Potwierdź:", font=("Arial", 11), bg="white").pack(anchor="w")
-        wl_pin2 = tk.Entry(frame, show="*", font=("Arial", 13), width=20)
-        wl_pin2.pack(anchor="w", pady=3)
-
-        def zmien_wlasny_pin():
-            stary = stary_pin.get().strip()
-            nowy1 = wl_pin1.get().strip()
-            nowy2 = wl_pin2.get().strip()
-            if stary != self.user['pin']:
-                messagebox.showerror("Błąd", "Stary PIN nieprawidłowy!")
-                return
-            if not nowy1:
-                messagebox.showerror("Błąd", "Wpisz nowy PIN!")
-                return
-            if nowy1 != nowy2:
-                messagebox.showerror("Błąd", "PINy nie są identyczne!")
-                return
-            if db.update_pracownik_pin(self.user['id'], nowy1):
-                db.add_kierownik_log(self.user['id'], 'zmiana_wlasnego_pin', "Kierownik zmienił własny PIN")
-                self.user['pin'] = nowy1
-                messagebox.showinfo("OK", "Twój PIN został zmieniony!")
-                stary_pin.delete(0, "end")
-                wl_pin1.delete(0, "end")
-                wl_pin2.delete(0, "end")
-            else:
-                messagebox.showerror("Błąd", "Nie udało się zmienić PIN!")
-
-        tk.Button(frame, text="🔑 Zmień własny PIN", command=zmien_wlasny_pin, font=("Arial", 12, "bold"), bg="#FF9800", fg="white", padx=20, pady=10).pack(anchor="w", pady=10)
-
-    def show_operacje_magazynu(self, parent):
-        tk.Label(parent, text="OPERACJE MAGAZYNU (KIEROWNIK)", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
-
+    def show_magazyn_ro(self, parent):
+        tk.Label(parent, text="STAN MAGAZYNU (tylko do odczytu)", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
         mag = db.get_magazyn()
-        mag_info = tk.Label(parent, text=f"Aktualny stan: {mag['palety']} palet", font=("Arial", 14, "bold"), bg="#E3F2FD", fg="#1976D2", relief="solid", borderwidth=1)
-        mag_info.pack(fill="x", padx=20, pady=5)
-
-        form_frame = tk.Frame(parent, bg="#F5F5F5", relief="solid", borderwidth=1)
-        form_frame.pack(fill="x", padx=20, pady=10)
-
-        tk.Label(form_frame, text="Typ:", font=("Arial", 11, "bold"), bg="#F5F5F5").grid(row=0, column=0, padx=10, pady=8, sticky="w")
-        typ_var = tk.StringVar(value="przyjecie")
-        tk.Radiobutton(form_frame, text="Dodaj palety (+)", variable=typ_var, value="przyjecie", bg="#F5F5F5", font=("Arial", 11)).grid(row=0, column=1, padx=10, pady=8, sticky="w")
-        tk.Radiobutton(form_frame, text="Odejmij palety (-)", variable=typ_var, value="wydanie", bg="#F5F5F5", font=("Arial", 11)).grid(row=0, column=2, padx=10, pady=8, sticky="w")
-
-        tk.Label(form_frame, text="Ilość:", font=("Arial", 11, "bold"), bg="#F5F5F5").grid(row=1, column=0, padx=10, pady=8, sticky="w")
-        ilosc_entry = tk.Entry(form_frame, font=("Arial", 13), width=10)
-        ilosc_entry.grid(row=1, column=1, padx=10, pady=8, sticky="w")
-
-        tk.Label(form_frame, text="Notatka:", font=("Arial", 11, "bold"), bg="#F5F5F5").grid(row=2, column=0, padx=10, pady=8, sticky="w")
-        notatka_entry = tk.Entry(form_frame, font=("Arial", 11), width=50)
-        notatka_entry.grid(row=2, column=1, columnspan=3, padx=10, pady=8, sticky="ew")
-
-        def zapisz_op():
-            try:
-                i = int(ilosc_entry.get())
-            except Exception:
-                messagebox.showerror("Błąd", "Wpisz prawidłową ilość!")
-                return
-            notatka = notatka_entry.get().strip()
-            if not notatka:
-                messagebox.showerror("Błąd", "Wpisz notatkę do operacji!")
-                return
-            typ = typ_var.get()
-            db.add_magazyn_operacja(self.user['id'], typ, i, notatka)
-            db.add_kierownik_log(self.user['id'], f'operacja_magazynu_{typ}', f"{'+' if typ == 'przyjecie' else '-'}{i} palet; notatka: {notatka}")
-            mag_now = db.get_magazyn()
-            mag_info.config(text=f"Aktualny stan: {mag_now['palety']} palet")
-            messagebox.showinfo("OK", "Operacja zapisana!")
-            ilosc_entry.delete(0, "end")
-            notatka_entry.delete(0, "end")
-            refresh_historia()
-
-        tk.Button(form_frame, text="💾 Zapisz operację", command=zapisz_op, font=("Arial", 11, "bold"), bg="#4CAF50", fg="white", padx=20, pady=8).grid(row=3, column=0, columnspan=4, padx=10, pady=10)
-
-        tk.Label(parent, text="HISTORIA OPERACJI MAGAZYNU", font=("Arial", 12, "bold"), bg="white").pack(fill="x", padx=20, pady=(10, 5))
-
-        tree_frame = tk.Frame(parent, bg="white")
-        tree_frame.pack(fill="both", expand=True, padx=20, pady=5)
-
-        columns = ("Data", "Typ", "Ilość", "Magazynier", "Notatka")
-        tree = ttk.Treeview(tree_frame, columns=columns, height=12, show="headings")
-        widths = [150, 100, 70, 150, 350]
-        for col, width in zip(columns, widths):
-            tree.heading(col, text=col)
-            tree.column(col, width=width)
-
-        def refresh_historia():
-            for item in tree.get_children():
-                tree.delete(item)
-            for op in db.get_magazyn_operacje():
-                data = op['data'].split('.')[0] if '.' in op['data'] else op['data']
-                tree.insert("", "end", values=(data, op['typ'].upper(), op['ilosc'], op['magazynier_nazwa'], op['notatka'] or "-"))
-
-        refresh_historia()
-        tree.pack(fill="both", expand=True)
+        info_frame = tk.Frame(parent, bg="#E3F2FD", relief="solid", borderwidth=2)
+        info_frame.pack(fill="x", padx=20, pady=20)
+        tk.Label(info_frame, text=f"Palety w magazynie: {mag['palety']}", font=("Arial", 18, "bold"), bg="#E3F2FD", fg="#1976D2").pack(pady=20)
     
     def logout(self):
         self.destroy()
@@ -1095,15 +980,37 @@ class PanelAdmina(tk.Tk):
         logout_btn.pack(pady=10, padx=20, fill="x")
     
     def show_pracownicy_admin(self, parent):
+        for widget in parent.winfo_children():
+            widget.destroy()
+
         tk.Label(parent, text="PRACOWNICY", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
         
         btn_frame = tk.Frame(parent, bg="white")
-        btn_frame.pack(fill="x", padx=10, pady=10)
+        btn_frame.pack(fill="x", padx=10, pady=5)
         
+        tree_frame = tk.Frame(parent, bg="white")
+        tree_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        columns = ("ID", "Nazwa", "Rola")
+        tree = ttk.Treeview(tree_frame, columns=columns, height=20, show="headings")
+        widths = [50, 250, 150]
+        for col, width in zip(columns, widths):
+            tree.heading(col, text=col)
+            tree.column(col, width=width)
+        
+        pracownicy = db.get_all_pracownicy()
+        seen_ids = set()
+        for p in pracownicy:
+            if p['id'] not in seen_ids:
+                tree.insert("", "end", values=(p['id'], p['nazwa'], p['rola']), iid=p['id'])
+                seen_ids.add(p['id'])
+        
+        tree.pack(fill="both", expand=True)
+
         def add_pracownik_win():
             add_win = tk.Toplevel(parent)
             add_win.title("Dodaj pracownika")
-            add_win.geometry("400x350")
+            add_win.geometry("400x320")
             add_win.grab_set()
             
             tk.Label(add_win, text="Nazwa:", font=("Arial", 11, "bold")).pack(pady=5)
@@ -1115,9 +1022,9 @@ class PanelAdmina(tk.Tk):
             pin.pack(pady=5)
             
             tk.Label(add_win, text="Rola:", font=("Arial", 11, "bold")).pack(pady=5)
-            rola = ttk.Combobox(add_win, values=["pracownik", "kierownik", "magazynier", "admin"], font=("Arial", 11), width=37, state="readonly")
+            rola = ttk.Combobox(add_win, values=["magazynier", "kierownik", "admin"], font=("Arial", 11), width=37, state="readonly")
             rola.pack(pady=5)
-            rola.set("pracownik")
+            rola.set("magazynier")
             
             def save():
                 if db.add_pracownik(nazwa.get(), pin.get(), rola.get()):
@@ -1125,18 +1032,15 @@ class PanelAdmina(tk.Tk):
                     add_win.destroy()
                     self.show_pracownicy_admin(parent)
                 else:
-                    messagebox.showerror("Błąd", "PIN już istnieje!")
+                    messagebox.showerror("Błąd", "PIN już istnieje lub błąd!")
             
-            tk.Button(add_win, text="Dodaj", command=save, font=("Arial", 11, "bold"), bg="#4CAF50", fg="white", padx=30, pady=10).pack(pady=20)
-        
-        tk.Button(btn_frame, text="➕ Dodaj pracownika", command=add_pracownik_win, font=("Arial", 11, "bold"), bg="#4CAF50", fg="white", padx=20, pady=8).pack(side="left", padx=5)
+            tk.Button(add_win, text="Dodaj", command=save, font=("Arial", 11, "bold"), bg="#4CAF50", fg="white", padx=30, pady=10).pack(pady=15)
         
         def delete_pracownik_fn():
             selection = tree.selection()
             if not selection:
                 messagebox.showerror("Błąd", "Wybierz pracownika!")
                 return
-            
             pracownik_id = int(selection[0])
             if messagebox.askyesno("Potwierdzenie", "Na pewno usunąć tego pracownika?"):
                 if db.delete_pracownik(pracownik_id):
@@ -1144,36 +1048,62 @@ class PanelAdmina(tk.Tk):
                     self.show_pracownicy_admin(parent)
                 else:
                     messagebox.showerror("Błąd", "Nie udało się usunąć!")
-        
+
+        def zmien_pin_fn():
+            selection = tree.selection()
+            if not selection:
+                messagebox.showerror("Błąd", "Wybierz pracownika!")
+                return
+            pracownik_id = int(selection[0])
+            p = db.get_pracownik_by_id(pracownik_id)
+
+            pin_win = tk.Toplevel(parent)
+            pin_win.title(f"Zmiana PIN - {p['nazwa']}")
+            pin_win.geometry("400x280")
+            pin_win.grab_set()
+
+            tk.Label(pin_win, text=f"Zmiana PIN dla: {p['nazwa']} ({p['rola']})", font=("Arial", 12, "bold")).pack(pady=15)
+            tk.Label(pin_win, text="Nowy PIN:", font=("Arial", 11)).pack()
+            pin1 = tk.Entry(pin_win, show="*", font=("Arial", 13), width=20)
+            pin1.pack(pady=5)
+            tk.Label(pin_win, text="Potwierdź PIN:", font=("Arial", 11)).pack()
+            pin2 = tk.Entry(pin_win, show="*", font=("Arial", 13), width=20)
+            pin2.pack(pady=5)
+
+            def zapisz_pin():
+                n1 = pin1.get().strip()
+                n2 = pin2.get().strip()
+                if not n1:
+                    messagebox.showerror("Błąd", "Wpisz PIN!")
+                    return
+                if n1 != n2:
+                    messagebox.showerror("Błąd", "PINy nie są identyczne!")
+                    return
+                if db.update_pracownik_pin(pracownik_id, n1):
+                    messagebox.showinfo("OK", f"PIN dla {p['nazwa']} zmieniony!")
+                    pin_win.destroy()
+                else:
+                    messagebox.showerror("Błąd", "Nie udało się zmienić PIN (PIN zajęty?)!")
+
+            tk.Button(pin_win, text="🔑 Zmień PIN", command=zapisz_pin, font=("Arial", 12, "bold"), bg="#2196F3", fg="white", padx=20, pady=10).pack(pady=15)
+
+        tk.Button(btn_frame, text="➕ Dodaj pracownika", command=add_pracownik_win, font=("Arial", 11, "bold"), bg="#4CAF50", fg="white", padx=20, pady=8).pack(side="left", padx=5)
         tk.Button(btn_frame, text="❌ Usuń pracownika", command=delete_pracownik_fn, font=("Arial", 11, "bold"), bg="#D32F2F", fg="white", padx=20, pady=8).pack(side="left", padx=5)
-        
-        tree_frame = tk.Frame(parent, bg="white")
-        tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        
-        columns = ("ID", "Nazwa", "Rola")
-        tree = ttk.Treeview(tree_frame, columns=columns, height=20, show="headings")
-        
-        widths = [50, 200, 150]
-        for col, width in zip(columns, widths):
-            tree.heading(col, text=col)
-            tree.column(col, width=width)
-        
-        pracownicy = db.get_all_pracownicy()
-        for p in pracownicy:
-            tree.insert("", "end", values=(p['id'], p['nazwa'], p['rola']), iid=p['id'])
-        
-        tree.pack(fill="both", expand=True)
+        tk.Button(btn_frame, text="🔑 Zmień PIN", command=zmien_pin_fn, font=("Arial", 11, "bold"), bg="#2196F3", fg="white", padx=20, pady=8).pack(side="left", padx=5)
     
     def show_rozbieznosci_admin(self, parent):
+        for widget in parent.winfo_children():
+            widget.destroy()
+
         tk.Label(parent, text="ROZBIEŻNOŚCI", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
         
         tree_frame = tk.Frame(parent, bg="white")
-        tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        tree_frame.pack(fill="both", expand=True, padx=10, pady=5)
         
-        columns = ("Pracownik", "Data", "Różnica", "Status")
-        tree = ttk.Treeview(tree_frame, columns=columns, height=20, show="headings")
+        columns = ("Magazynier", "Data", "Różnica", "Status", "Logowania (0/3)", "Dni do wygaśnięcia", "Notatka KW")
+        tree = ttk.Treeview(tree_frame, columns=columns, height=18, show="headings")
         
-        widths = [200, 150, 100, 150]
+        widths = [150, 130, 80, 110, 130, 130, 250]
         for col, width in zip(columns, widths):
             tree.heading(col, text=col)
             tree.column(col, width=width)
@@ -1181,9 +1111,56 @@ class PanelAdmina(tk.Tk):
         rozbieznosci = db.get_all_rozbieznosci()
         for r in rozbieznosci:
             data = r['data_rozpoczecia'].split('.')[0] if '.' in r['data_rozpoczecia'] else r['data_rozpoczecia']
-            tree.insert("", "end", values=(r['pracownik_nazwa'], data, f"{r['roznica']:+d}", r['status'].upper()))
+            licznik = r.get('licznik_dni') or 0
+            try:
+                from datetime import datetime as _dt, timedelta as _td
+                dt = _dt.fromisoformat(r['data_rozpoczecia'].split('.')[0])
+                dni_do_wyg = max(0, (dt + _td(days=3) - _dt.now()).days)
+            except Exception:
+                dni_do_wyg = "-"
+            tree.insert("", "end", values=(
+                r['pracownik_nazwa'],
+                data,
+                f"{r['roznica']:+d}",
+                r['status'].upper(),
+                f"{licznik}/3",
+                dni_do_wyg,
+                r['notatka_kierownika'] or "-"
+            ), iid=r['id'])
         
         tree.pack(fill="both", expand=True)
+
+        action_frame = tk.Frame(parent, bg="white")
+        action_frame.pack(fill="x", padx=10, pady=10)
+
+        def zatwierdz():
+            selection = tree.selection()
+            if not selection:
+                messagebox.showerror("Błąd", "Wybierz rozbieżność!")
+                return
+            rozbieznosc_id = int(selection[0])
+
+            zatw_win = tk.Toplevel(parent)
+            zatw_win.title("Zatwierdzenie rozbieżności")
+            zatw_win.geometry("500x300")
+            zatw_win.grab_set()
+
+            tk.Label(zatw_win, text="Notatka (opcjonalnie):", font=("Arial", 11, "bold")).pack(pady=10)
+            notatka = tk.Entry(zatw_win, font=("Arial", 11), width=50)
+            notatka.pack(fill="x", padx=10, pady=5)
+
+            def zapisz_zatw():
+                try:
+                    db.zatwierdzenie_rozbieznosci(rozbieznosc_id, self.user['id'], notatka.get())
+                    messagebox.showinfo("OK", "Rozbieżność zatwierdzona!")
+                    zatw_win.destroy()
+                    self.show_rozbieznosci_admin(parent)
+                except Exception:
+                    messagebox.showerror("Błąd", "Sprawdź dane!")
+
+            tk.Button(zatw_win, text="✅ Zatwierdź", command=zapisz_zatw, font=("Arial", 12, "bold"), bg="#4CAF50", fg="white", padx=20, pady=10).pack(pady=15)
+
+        tk.Button(action_frame, text="✅ Zatwierdź rozbieżność", command=zatwierdz, font=("Arial", 11, "bold"), bg="#4CAF50", fg="white", padx=20, pady=8).pack(side="left", padx=5)
     
     def show_klienci_admin(self, parent):
         tk.Label(parent, text="KLIENCI", font=("Arial", 13, "bold"), bg="white").pack(fill="x", padx=10, pady=10)
